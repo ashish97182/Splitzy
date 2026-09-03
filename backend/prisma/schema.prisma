@@ -1,0 +1,89 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model expense_splits {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  expenseId String   @db.Uuid
+  userId    String   @db.Uuid
+  amount    Decimal  @db.Decimal
+  expenses  expenses @relation(fields: [expenseId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  users     users    @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@unique([expenseId, userId])
+@@index([userId], map: "idx_expense_splits_userId")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model expenses {
+  id             String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  groupId        String           @db.Uuid
+  paidBy         String           @db.Uuid
+  description    String           @db.VarChar
+  amount         Decimal          @db.Decimal
+  splitType      String           @db.VarChar
+  createdAt      DateTime         @db.Timestamptz(6)
+  updatedAt      DateTime         @db.Timestamptz(6)
+  expense_splits expense_splits[]
+  groups         groups           @relation(fields: [groupId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  users          users            @relation(fields: [paidBy], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+@@index([groupId], map: "idx_expenses_groupId")
+}
+
+model group_members {
+  id       String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId   String   @db.Uuid
+  groupId  String   @db.Uuid
+  joinedAt DateTime @db.Timestamptz(6)
+  groups   groups   @relation(fields: [groupId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  users    users    @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@unique([userId, groupId])
+@@index([groupId], map: "idx_group_members_groupId")
+}
+
+model groups {
+  id            String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name          String          @db.VarChar
+  createdAt     DateTime        @db.Timestamptz(6)
+  updatedAt     DateTime        @db.Timestamp(6)
+  expenses      expenses[]
+  group_members group_members[]
+  settlements   settlements[]
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model settlements {
+  id                              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  groupId                         String   @db.Uuid
+  paidBy                          String   @db.Uuid
+  paidTo                          String   @db.Uuid
+  amount                          Decimal  @db.Decimal
+  createdAt                       DateTime @db.Timestamptz(6)
+  groups                          groups   @relation(fields: [groupId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  users_settlements_paidByTousers users    @relation("settlements_paidByTousers", fields: [paidBy], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  users_settlements_paidToTousers users    @relation("settlements_paidToTousers", fields: [paidTo], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([groupId], map: "idx_settlements_groupId")
+@@index([paidBy], map: "idx_settlements_paidBy")
+@@index([paidTo], map: "idx_settlements_paidTo")
+}
+
+model users {
+  id                                    String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name                                  String           @db.VarChar
+  email                                 String           @unique @db.VarChar
+  password                              String           @db.VarChar
+  createdAt                             DateTime         @db.Timestamp(6)
+  updatedAt                             DateTime         @db.Time(6)
+  expense_splits                        expense_splits[]
+  expenses                              expenses[]
+  group_members                         group_members[]
+  settlements_settlements_paidByTousers settlements[]    @relation("settlements_paidByTousers")
+  settlements_settlements_paidToTousers settlements[]    @relation("settlements_paidToTousers")
+}
