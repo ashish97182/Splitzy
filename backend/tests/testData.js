@@ -1,24 +1,54 @@
 
-import prisma from "./lib/prisma.js";
+import prisma from "../lib/prisma.js";
 
-// Get existing users
-const rahul = await prisma.users.findUnique({
+// Create or get test users
+const rahul = await prisma.users.upsert({
   where: {
     email: "rahul@test.com"
+  },
+  update: {},
+  create: {
+    name: "Rahul",
+    email: "rahul@test.com",
+    passwordHash: "test-password-hash",
+    avatar: "",
+    createdAt: new Date(),
+    updatedAt: new Date()
   }
 });
 
-const priya = await prisma.users.findUnique({
+const priya = await prisma.users.upsert({
   where: {
     email: "priya@test.com"
+  },
+  update: {},
+  create: {
+    name: "Priya",
+    email: "priya@test.com",
+    passwordHash: "test-password-hash",
+    avatar: "",
+    createdAt: new Date(),
+    updatedAt: new Date()
   }
 });
 
-const aman = await prisma.users.findUnique({
+const aman = await prisma.users.upsert({
   where: {
     email: "aman@test.com"
+  },
+  update: {},
+  create: {
+    name: "Aman",
+    email: "aman@test.com",
+    passwordHash: "test-password-hash",
+    avatar: "",
+    createdAt: new Date(),
+    updatedAt: new Date()
   }
 });
+
+console.log("Test users ready");
+
 
 // Create group
 const group = await prisma.groups.create({
