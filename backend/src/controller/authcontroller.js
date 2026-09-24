@@ -1,7 +1,7 @@
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import prisma from "../config/db.js"; // Importing your DB connection
-import { error } from "node:console";
+
 
 // ----------------------------------------------------
 // POST /api/auth/register
@@ -24,12 +24,7 @@ export const registerUser= async (req, res) => {
     if (existingUser) {
       return res.status(400).json({ error: "Email is already registered." });
     }
-
-
-
     const passwordHash = await bcrypt.hash(password, 10);
-
-
     const newUser = await prisma.users.create({
       data: {
         name,
@@ -41,6 +36,9 @@ export const registerUser= async (req, res) => {
 
     // 5. Remove passwordHash before sending the response
     const { passwordHash: _, ...safeUser } = newUser;
+
+
+      
 
     return res.status(201).json({
       message: "User registered successfully!",
@@ -87,6 +85,7 @@ const user = await prisma.users.findUnique({
       { expiresIn: "7d" },
     );
      const { passwordHash: _, ...safeUser } = user;
+     res.cookie("token", token);
      return res.status(200).json({
        message: "Login successful!",
        token,
@@ -94,5 +93,8 @@ const user = await prisma.users.findUnique({
      });
 }catch(err){
         console.log(err);
+          return res.status(500).json({
+            error: "Internal server error during login.",
+          });
       }
 }
