@@ -5,7 +5,7 @@
   "main": "dist/server.js",
   "type": "module",
   "scripts": {
-   "dev": "npx nodemon server.js",
+    "dev": "npx nodemon server.js",
     "build": "tsc",
     "start": "node dist/server.js",
     "postinstall": "prisma skills sync || exit 0"
@@ -17,6 +17,7 @@
     "@prisma/adapter-pg": "^7.10.0",
     "@prisma/client": "^7.10.0",
     "bcrypt": "^5.1.1",
+    "cookie-parser": "^1.4.7",
     "cors": "^2.8.6",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",

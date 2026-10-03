@@ -6,29 +6,39 @@ datasource db {
   provider = "postgresql"
 }
 
+enum SplitType {
+  EQUAL
+  EXACT
+  PERCENTAGE
+  SHARES
+}
+
 model expense_splits {
-  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  expenseId String   @db.Uuid
-  userId    String   @db.Uuid
-  amount    Decimal  @db.Decimal
-  expenses  expenses @relation(fields: [expenseId], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  users     users    @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  id        String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  expenseId String  @db.Uuid
+  userId    String  @db.Uuid
+  amount    Decimal @db.Decimal
+
+  expenses expenses @relation(fields: [expenseId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  users    users    @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
   @@unique([expenseId, userId])
   @@index([userId], map: "idx_expense_splits_userId")
 }
 
-/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This table contains check constraints and requires additional setup for migrations.
+/// Visit https://pris.ly/d/check-constraints for more info.
 model expenses {
-  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  groupId     String   @db.Uuid
-  paidBy      String   @db.Uuid
-  description String   @db.VarChar
-  amount      Decimal  @db.Decimal
-  category    String   @db.VarChar
-  splitType   String   @db.VarChar
-  createdAt   DateTime @db.Timestamptz(6)
-  updatedAt   DateTime @db.Timestamptz(6)
+  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  groupId     String    @db.Uuid
+  paidBy      String    @db.Uuid
+  description String    @db.VarChar
+  amount      Decimal   @db.Decimal
+  category    String    @db.VarChar
+  splitType   SplitType
+
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @db.Timestamptz(6)
 
   expense_splits expense_splits[]
   groups         groups           @relation(fields: [groupId], references: [id], onDelete: NoAction, onUpdate: NoAction)
@@ -42,7 +52,7 @@ model group_members {
   userId   String   @db.Uuid
   groupId  String   @db.Uuid
   role     String   @db.VarChar
-  joinedAt DateTime @db.Timestamptz(6)
+  joinedAt DateTime @default(now()) @db.Timestamptz(6)
 
   groups groups @relation(fields: [groupId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   users  users  @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction)
@@ -56,16 +66,16 @@ model groups {
   name        String   @db.VarChar
   description String   @db.VarChar
   createdBy   String   @db.Uuid
-  createdAt   DateTime @db.Timestamptz(6)
-  updatedAt   DateTime @db.Timestamp(6)
+  createdAt   DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt   DateTime @updatedAt @db.Timestamptz(6)
 
   expenses      expenses[]
   group_members group_members[]
   settlements   settlements[]
-  users         users           @relation("groups_createdBy", fields: [createdBy], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  users users @relation("groups_createdBy", fields: [createdBy], references: [id], onDelete: NoAction, onUpdate: NoAction)
 }
 
-/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 model settlements {
   id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   groupId   String   @db.Uuid
@@ -73,11 +83,13 @@ model settlements {
   paidTo    String   @db.Uuid
   amount    Decimal  @db.Decimal
   status    String   @db.VarChar
-  createdAt DateTime @db.Timestamptz(6)
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
 
-  groups                          groups @relation(fields: [groupId], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  users_settlements_paidByTousers users  @relation("settlements_paidByTousers", fields: [paidBy], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  users_settlements_paidToTousers users  @relation("settlements_paidToTousers", fields: [paidTo], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  groups groups @relation(fields: [groupId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  users_settlements_paidByTousers users @relation("settlements_paidByTousers", fields: [paidBy], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  users_settlements_paidToTousers users @relation("settlements_paidToTousers", fields: [paidTo], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
   @@index([groupId], map: "idx_settlements_groupId")
   @@index([paidBy], map: "idx_settlements_paidBy")
@@ -93,11 +105,21 @@ model users {
   createdAt    DateTime @default(now()) @db.Timestamp(6)
   updatedAt    DateTime @updatedAt @db.Timestamp(6)
 
-
   expense_splits                        expense_splits[]
   expenses                              expenses[]
   group_members                         group_members[]
+  refresh_tokens                        refresh_tokens[]
   groups_created                        groups[]         @relation("groups_createdBy")
   settlements_settlements_paidByTousers settlements[]    @relation("settlements_paidByTousers")
   settlements_settlements_paidToTousers settlements[]    @relation("settlements_paidToTousers")
+}
+
+model refresh_tokens {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  token     String   @unique
+  userId    String   @db.Uuid
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  users users @relation(fields: [userId], references: [id], onDelete: Cascade)
 }

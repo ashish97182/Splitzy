@@ -1,5 +1,5 @@
 import prisma from "../config/db.js";
-
+import {calculateBalances} from "../../services/balanceService.js";
 // ----------------------------------------------------
 // POST /api/groups
 // ----------------------------------------------------
@@ -182,6 +182,149 @@ export const addGroupMember = async (req, res) => {
     });
   } catch (error) {
     console.error("Error in addGroupMember:", error);
+    return res.status(500).json({ error: "Internal server error." });
+  }
+};
+
+
+// ----------------------------------------------------------
+// REMOVE MEMBER: DELETE /api/groups/:groupId/members/:userId
+// ----------------------------------------------------------
+export const removeGroupMember = async (req, res) => {
+  try {
+    const { groupId, userId } = req.params;
+    const requesterId = req.user.userId;
+
+    // 1. Verify the requester is an ADMIN
+    const requesterMembership = await prisma.group_members.findFirst({
+      where: { groupId, userId: requesterId },
+    });
+
+    if (!requesterMembership || requesterMembership.role !== "ADMIN") {
+      return res
+        .status(403)
+        .json({ error: "Only group admins can remove members." });
+    }
+
+    if (userId === requesterId) {
+      return res.status(400).json({ error: "You cannot remove yourself." });
+    }
+
+    // 2. Find the exact membership record of the user being kicked
+    const targetMembership = await prisma.group_members.findFirst({
+      where: { groupId, userId },
+    });
+
+    if (!targetMembership) {
+      return res
+        .status(404)
+        .json({ error: "User is not a member of this group." });
+    }
+
+    // 3. ✨ THE FINANCIAL FIREWALL (New Balance Check) ✨
+    // Run your existing balance engine to get everyone's current net balances
+    const balances = await calculateBalances(groupId);
+
+    // Find the specific user being kicked in the summary array
+    const userBalance = balances.summary.find((b) => b.userId === userId);
+
+    // If they have a balance that isn't exactly 0, block the kick!
+    if (userBalance && userBalance.netBalance !== 0) {
+      // Format a nice error message so the frontend knows exactly why it failed
+      const action = userBalance.netBalance > 0 ? "is owed" : "owes";
+      const amount = Math.abs(userBalance.netBalance);
+
+      return res.status(400).json({
+        error: `Cannot remove member. They still ${action} $${amount} in this group. Please settle all debts first.`,
+      });
+    }
+
+    // 4. Safe to delete! The user has a $0 net balance.
+    await prisma.group_members.delete({
+      where: { id: targetMembership.id },
+    });
+
+    return res
+      .status(200)
+      .json({ message: "Member removed from the group successfully." });
+  } catch (error) {
+    console.error("Error removing member:", error);
+    return res.status(500).json({ error: "Internal server error." });
+  }
+};
+
+// ----------------------------------------------------
+// EDIT GROUP: PUT /api/groups/:groupId
+// ----------------------------------------------------
+export const updateGroup = async (req, res) => {
+  try {
+    const { groupId } = req.params;
+    const { name, description } = req.body;
+    const requesterId = req.user.userId;
+
+    // 1. Verify the requester is an ADMIN
+    const requesterMembership = await prisma.group_members.findFirst({
+      where: { groupId, userId: requesterId },
+    });
+
+    if (!requesterMembership || requesterMembership.role !== "ADMIN") {
+      return res.status(403).json({ error: "Only group admins can edit group details." });
+    }
+
+    // 2. Update the group in the database
+    // (Assuming your table is called `groups`. Change to `group` if your schema uses singular)
+    const updatedGroup = await prisma.groups.update({
+      where: { id: groupId },
+      data: { name, description }, 
+    });
+
+    return res.status(200).json({ 
+      message: "Group updated successfully.", 
+      group: updatedGroup 
+    });
+  } catch (error) {
+    console.error("Error updating group:", error);
+    return res.status(500).json({ error: "Internal server error." });
+  }
+};
+
+// ----------------------------------------------------
+// DELETE GROUP: DELETE /api/groups/:groupId
+// ----------------------------------------------------
+export const deleteGroup = async (req, res) => {
+  try {
+    const { groupId } = req.params;
+    const requesterId = req.user.userId;
+
+    // 1. Verify the requester is an ADMIN
+    const requesterMembership = await prisma.group_members.findFirst({
+      where: { groupId, userId: requesterId },
+    });
+
+    if (!requesterMembership || requesterMembership.role !== "ADMIN") {
+      return res.status(403).json({ error: "Only group admins can delete the group." });
+    }
+
+    // 2. Fetch all expenses in this group so we can delete their splits
+    const groupExpenses = await prisma.expenses.findMany({
+      where: { groupId },
+    });
+    const expenseIds = groupExpenses.map((expense) => expense.id);
+
+    // 3. Use a safe $transaction to manually cascade the deletion
+    // We must delete from the "bottom up" (Splits -> Expenses -> Members -> Group)
+    await prisma.$transaction([
+      prisma.expense_splits.deleteMany({ where: { expenseId: { in: expenseIds } } }),
+      prisma.expenses.deleteMany({ where: { groupId } }),
+      prisma.group_members.deleteMany({ where: { groupId } }),
+      prisma.groups.delete({ where: { id: groupId } }),
+    ]);
+
+    return res.status(200).json({ 
+      message: "Group and all related expenses have been permanently deleted." 
+    });
+  } catch (error) {
+    console.error("Error deleting group:", error);
     return res.status(500).json({ error: "Internal server error." });
   }
 };
