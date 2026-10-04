@@ -1,11 +1,12 @@
 import dotenv from "dotenv";
+dotenv.config();
+
 import app from "./src/app.js";
 import prisma from "./src/config/db.js"; // Adjust the path based on where you placed db.js
 
-dotenv.config();
 
 const PORT = process.env.PORT || 5000;
-
+// Use cookie-parser middleware to parse cookies
 const startServer = async () => {
   try {
     await prisma.$connect();

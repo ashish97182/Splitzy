@@ -1,31 +1,46 @@
 import jwt from "jsonwebtoken";
 
 export const protect = (req, res, next) => {
-  try {
-    const authHeader = req.headers.authorization;
+  const authHeader = req.headers.authorization;
 
-    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+  if (!authHeader?.startsWith("Bearer ")) {
+    return res.status(401).json({
+      error: "Access token missing.",
+    });
+  }
+
+  const token = authHeader.slice(7);
+
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+
+    if (
+      typeof decoded === "string" ||
+      !decoded.userId ||
+      decoded.tokenType !== "access"
+    ) {
       return res.status(401).json({
-        error: "Not authorized, token missing.",
+        error: "Invalid access token.",
       });
     }
 
-    const token = authHeader.split(" ")[1];
+    req.user = { userId: decoded.userId };
 
-    const decoded = jwt.verify(
-      token,
-      process.env.JWT_SECRET || "fallback_secret_key",
-    );
-
-    req.user = decoded;
-
-    next();
+    return next();
   } catch (error) {
-    console.error("Auth middleware error:", error);
+    if (
+      error.name === "TokenExpiredError" ||
+      error.name === "JsonWebTokenError"
+    ) {
+      return res.status(401).json({
+        error: "Invalid or expired access token.",
+      });
+    }
 
-    return res.status(401).json({
-      error: "Not authorized, token failed.",
+    console.error("Authentication configuration error:", error.message);
+
+    return res.status(500).json({
+      error: "Authentication service unavailable.",
     });
   }
 };
-

@@ -2,11 +2,13 @@ import express from "express";
 import healthRoutes from "./routes/healthRoutes.js"
 import authroutes from "./routes/authroutes.js"
 import groupRoutes from "./routes/groupRoutes.js";
-
+import cookieParser from "cookie-parser";
+import morgan from "morgan"; 
 const app = express();
 
 app.use(express.json());
-
+app.use(cookieParser()); 
+app.use(morgan("dev"));
 app.use("/api/", healthRoutes);
 app.use("/api/auth", authroutes);
 app.use("/api/groups", groupRoutes);
