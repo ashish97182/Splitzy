@@ -15,18 +15,15 @@ import {
 export const registerUser = async (req, res) => {
   try {
     const { name, email, password } = req.body;
-
-    // 1. Validate input
+    const normalizedEmail = email.trim().toLowerCase();
     if (!name || !email || !password) {
       return res.status(400).json({
         error: "Please provide all required fields.",
       });
     }
-
-    // 2. Check if user already exists
     const existingUser = await prisma.users.findUnique({
       where: {
-        email,
+        email: normalizedEmail,
       },
     });
 
@@ -35,22 +32,15 @@ export const registerUser = async (req, res) => {
         error: "User already exists with this email.",
       });
     }
-
-    // 3. Hash password
-    const salt = await bcrypt.genSalt(10);
-    const passwordHash = await bcrypt.hash(password, salt);
-
-    // 4. Create user
+    const passwordHash = await bcrypt.hash(password, 10);
     const newUser = await prisma.users.create({
       data: {
         name,
-        email,
+        email: normalizedEmail,
         passwordHash,
         avatar: "",
       },
     });
-
-    // 5. Send response
     return res.status(201).json({
       message: "User registered successfully",
       user: {
@@ -75,22 +65,19 @@ export const registerUser = async (req, res) => {
 export const login = async (req, res) => {
   try {
     const { email, password } = req.body;
+    const normalizedEmail = email.trim().toLowerCase();
 
-    // 1. Validate input
     if (!email || !password) {
       return res.status(400).json({
         error: "Email and password are required.",
       });
     }
-
-    // 2. Find user
     const user = await prisma.users.findUnique({
       where: {
-        email,
+        normalizedEmail,
       },
     });
 
-    // 3. Validate credentials
     if (!user || !(await bcrypt.compare(password, user.passwordHash))) {
       return res.status(401).json({
         error: "Invalid credentials.",
@@ -129,7 +116,6 @@ export const login = async (req, res) => {
 
     // Hash refresh token BEFORE storing it
     const refreshTokenHash = hashRefreshToken(refreshToken);
-
     const expiresAt = new Date(Date.now() + REFRESH_TOKEN_MS);
 
     // ------------------------------------------------
@@ -358,15 +344,12 @@ export const logout = async (req, res) => {
     const refreshToken = req.cookies?.jwt;
 
     if (refreshToken) {
-      // Hash the refresh token before deleting
       await prisma.refresh_tokens.deleteMany({
         where: {
           token: hashRefreshToken(refreshToken),
         },
       });
     }
-
-    // Clear cookie
     res.clearCookie("jwt", refreshCookieOptions);
 
     return res.status(200).json({
@@ -374,6 +357,32 @@ export const logout = async (req, res) => {
     });
   } catch (error) {
     console.error("Logout error:", error.message);
+
+    return res.status(500).json({
+      error: "Internal server error.",
+    });
+  }
+};
+
+export const logoutAllDevices = async (req, res) => {
+  try {
+    const userId = req.user.userId;
+
+    // Delete all refresh tokens belonging to this user
+    await prisma.refresh_tokens.deleteMany({
+      where: {
+        userId: userId,
+      },
+    });
+
+    // Clear refresh token cookie on the current device
+    res.clearCookie("jwt", refreshCookieOptions);
+
+    return res.status(200).json({
+      message: "Logged out from all devices successfully.",
+    });
+  } catch (error) {
+    console.error("Logout all devices error:", error.message);
 
     return res.status(500).json({
       error: "Internal server error.",

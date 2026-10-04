@@ -5,6 +5,7 @@ import {
   registerUser,
   refreshAccessToken,
   logout,
+  logoutAllDevices,
 } from "../controller/authcontroller.js";
 import {protect} from "../middleware/authMiddleware.js";
 
@@ -14,7 +15,8 @@ const router = express.Router();
 router.post("/register", registerUser);
 router.post("/login", login);
 router.post("/logout", logout);
-router.post("/refresh", refreshAccessToken);
+router.post("/logout-all", logoutAllDevices);
+router.post("/refresh",protect, refreshAccessToken);
 
 router.get("/test", protect, (req, res) => {
   res.json({

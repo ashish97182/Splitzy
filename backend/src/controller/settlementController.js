@@ -6,7 +6,7 @@ import prisma from "../config/db.js";
 export const addSettlement = async (req, res) => {
   try {
     const { groupId } = req.params;
-    const { payeeId, amount } = req.body; // payeeId is the person receiving the money
+    const { payeeId, amount } = req.body; 
     const payerId = req.user.userId; // The person logged in is making the payment
 
     if (!payeeId || !amount || amount <= 0) {
@@ -15,7 +15,6 @@ export const addSettlement = async (req, res) => {
         .json({ error: "Payee ID and a valid amount are required." });
     }
 
-    // 1. Verify both users are in the group
     const groupMembers = await prisma.group_members.findMany({
       where: { groupId, userId: { in: [payerId, payeeId] } },
     });
