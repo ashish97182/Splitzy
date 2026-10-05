@@ -1,5 +1,6 @@
 import prisma from "../config/db.js";
 import {calculateBalances} from "../../services/balanceService.js";
+import { sendGroupInviteEmail } from "../../services/mail/email.service.js";
 // ----------------------------------------------------
 // POST /api/groups
 // ----------------------------------------------------
@@ -135,38 +136,50 @@ export const getGroupById = async (req, res) => {
 export const addGroupMember = async (req, res) => {
   try {
     const { groupId } = req.params;
-    const { email } = req.body; 
+    const { email } = req.body;
+
     const requesterId = req.user.userId;
 
     if (!email) {
-      return res.status(400).json({ error: "Email is required to add a member." });
+      return res
+        .status(400)
+        .json({ error: "Email is required to add a member." });
     }
+    const normalizedEmail = email.trim().toLowerCase();
+    const group = await prisma.groups.findUnique({
+      where: { id: groupId },
+    });
 
+    if (!group) {
+      return res.status(404).json({ error: "Group not found." });
+    }
     const isRequesterMember = await prisma.group_members.findFirst({
       where: { groupId: groupId, userId: requesterId },
     });
 
     if (!isRequesterMember) {
-      return res.status(403).json({ error: "You must be a member of the group to add others." });
+      return res
+        .status(403)
+        .json({ error: "You must be a member of the group to add others." });
     }
-
-
     const userToAdd = await prisma.users.findUnique({
-      where: { email },
+      where: { email: normalizedEmail },
     });
 
     if (!userToAdd) {
-      return res.status(404).json({ error: "User with this email not found in Splitzy." });
+      return res
+        .status(404)
+        .json({ error: "User with this email not found in Splitzy." });
     }
-
     const existingMember = await prisma.group_members.findFirst({
       where: { groupId: groupId, userId: userToAdd.id },
     });
 
     if (existingMember) {
-      return res.status(400).json({ error: "User is already a member of this group." });
+      return res
+        .status(400)
+        .json({ error: "User is already a member of this group." });
     }
-
     const newMember = await prisma.group_members.create({
       data: {
         groupId: groupId,
@@ -174,6 +187,21 @@ export const addGroupMember = async (req, res) => {
         role: "MEMBER",
         joinedAt: new Date(),
       },
+    });
+
+    // 6. 🌟 Non-blocking background email dispatch
+    // We grab the requester's name directly from the JWT (req.user.name) if available,
+    // or fallback to "A group member"
+    sendGroupInviteEmail(
+      userToAdd.email,
+      userToAdd.name,
+      group.name,
+      req.user.name || "A group member",
+    ).catch((emailErr) => {
+      console.error(
+        `Failed to send group invite email to ${userToAdd.email}:`,
+        emailErr.message,
+      );
     });
 
     return res.status(201).json({
@@ -195,7 +223,6 @@ export const removeGroupMember = async (req, res) => {
     const { groupId, userId } = req.params;
     const requesterId = req.user.userId;
 
-    // 1. Verify the requester is an ADMIN
     const requesterMembership = await prisma.group_members.findFirst({
       where: { groupId, userId: requesterId },
     });
@@ -210,7 +237,6 @@ export const removeGroupMember = async (req, res) => {
       return res.status(400).json({ error: "You cannot remove yourself." });
     }
 
-    // 2. Find the exact membership record of the user being kicked
     const targetMembership = await prisma.group_members.findFirst({
       where: { groupId, userId },
     });
@@ -221,16 +247,10 @@ export const removeGroupMember = async (req, res) => {
         .json({ error: "User is not a member of this group." });
     }
 
-    // 3. ✨ THE FINANCIAL FIREWALL (New Balance Check) ✨
-    // Run your existing balance engine to get everyone's current net balances
     const balances = await calculateBalances(groupId);
 
-    // Find the specific user being kicked in the summary array
     const userBalance = balances.summary.find((b) => b.userId === userId);
-
-    // If they have a balance that isn't exactly 0, block the kick!
     if (userBalance && userBalance.netBalance !== 0) {
-      // Format a nice error message so the frontend knows exactly why it failed
       const action = userBalance.netBalance > 0 ? "is owed" : "owes";
       const amount = Math.abs(userBalance.netBalance);
 
@@ -238,8 +258,6 @@ export const removeGroupMember = async (req, res) => {
         error: `Cannot remove member. They still ${action} $${amount} in this group. Please settle all debts first.`,
       });
     }
-
-    // 4. Safe to delete! The user has a $0 net balance.
     await prisma.group_members.delete({
       where: { id: targetMembership.id },
     });

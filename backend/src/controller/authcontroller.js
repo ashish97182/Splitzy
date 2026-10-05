@@ -7,20 +7,22 @@ import {
   refreshCookieOptions,
   REFRESH_TOKEN_MS,
 } from "../utils/tokenUtils.js";
-
+import { sendRegisteredEmail } from "../../services/mail/email.service.js";
 // ----------------------------------------------------
 // POST /api/auth/register
 // ----------------------------------------------------
-
 export const registerUser = async (req, res) => {
   try {
     const { name, email, password } = req.body;
-    const normalizedEmail = email.trim().toLowerCase();
+
     if (!name || !email || !password) {
       return res.status(400).json({
         error: "Please provide all required fields.",
       });
     }
+    const normalizedEmail = email.trim().toLowerCase();
+    const trimmedName = name.trim();
+
     const existingUser = await prisma.users.findUnique({
       where: {
         email: normalizedEmail,
@@ -32,15 +34,25 @@ export const registerUser = async (req, res) => {
         error: "User already exists with this email.",
       });
     }
+
     const passwordHash = await bcrypt.hash(password, 10);
     const newUser = await prisma.users.create({
       data: {
-        name,
+        name: trimmedName,
         email: normalizedEmail,
         passwordHash,
         avatar: "",
       },
     });
+
+    // 6. Non-blocking email dispatch (logs errors without blocking HTTP response)
+    sendRegisteredEmail(newUser.email, newUser.name).catch((emailErr) => {
+      console.error(
+        `Failed to dispatch welcome email to ${newUser.email}:`,
+        emailErr.message,
+      );
+    });
+
     return res.status(201).json({
       message: "User registered successfully",
       user: {
@@ -65,16 +77,21 @@ export const registerUser = async (req, res) => {
 export const login = async (req, res) => {
   try {
     const { email, password } = req.body;
-    const normalizedEmail = email.trim().toLowerCase();
 
+    // 1. Guard against missing fields BEFORE modifying them (Fixes crash)
     if (!email || !password) {
       return res.status(400).json({
         error: "Email and password are required.",
       });
     }
+
+    // 2. Safe normalization
+    const normalizedEmail = email.trim().toLowerCase();
+
+    // 3. Fix Prisma syntax to map to the 'email' column
     const user = await prisma.users.findUnique({
       where: {
-        normalizedEmail,
+        email: normalizedEmail,
       },
     });
 
@@ -91,6 +108,7 @@ export const login = async (req, res) => {
     const accessToken = jwt.sign(
       {
         userId: user.id,
+        name: user.name, 
         tokenType: "access",
       },
       process.env.JWT_SECRET,
@@ -160,7 +178,6 @@ export const login = async (req, res) => {
     });
   }
 };
-
 // ----------------------------------------------------
 // POST /api/auth/refresh
 // ----------------------------------------------------

@@ -1,15 +1,20 @@
 import jwt from "jsonwebtoken";
 
 export const protect = (req, res, next) => {
-  const authHeader = req.headers.authorization;
+  let token;
 
-  if (!authHeader?.startsWith("Bearer ")) {
+  if (req.headers.authorization?.startsWith("Bearer ")) {
+    token = req.headers.authorization.split(" ")[1];
+  }
+  else if (req.cookies && req.cookies.accessToken) {
+    token = req.cookies.accessToken;
+  }
+
+  if (!token) {
     return res.status(401).json({
       error: "Access token missing.",
     });
   }
-
-  const token = authHeader.slice(7);
 
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
@@ -23,8 +28,10 @@ export const protect = (req, res, next) => {
         error: "Invalid access token.",
       });
     }
-
-    req.user = { userId: decoded.userId };
+    req.user = {
+      userId: decoded.userId,
+      name: decoded.name,
+    };
 
     return next();
   } catch (error) {
