@@ -26,14 +26,18 @@ function Login() {
   };
 
   return (
-    <div
-      className="min-h-screen flex items-center justify-center bg-cover bg-center bg-fixed bg-no-repeat"
-      style={{ backgroundImage: `url(${loginBackground})` }}
-    >
-      <div className="relative w-full max-w-md overflow-hidden rounded-2xl bg-white p-8 shadow-lg">
+    <div className="relative isolate min-h-screen flex items-center justify-center px-4 py-8">
+      <div
+        aria-hidden="true"
+        className="login-background-image pointer-events-none absolute inset-0 z-0"
+        style={{ backgroundImage: `url(${loginBackground})` }}
+      />
+      <div aria-hidden="true" className="login-background-overlay pointer-events-none absolute inset-0 z-0" />
+
+      <div className="relative z-10 w-full max-w-md overflow-hidden rounded-2xl bg-white p-8 shadow-lg">
         <img
           src={logo2}
-          alt="SPLITZY logo"
+          alt="DostiDue logo"
           aria-hidden="true"
           className="pointer-events-none absolute left-1/2 top-1/2 z-0 h-auto w-[92%] max-w-[280px] -translate-x-1/2 -translate-y-1/2 rounded-[10px] object-contain opacity-[0.16]"
         />

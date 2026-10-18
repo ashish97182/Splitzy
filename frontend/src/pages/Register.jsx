@@ -30,7 +30,7 @@ function Register() {
         </h1>
 
         <p className="mt-2 text-center text-gray-500">
-          Join Splitzy
+          Join <span className="brand-gradient">DostiDue</span>
         </p>
 
         <form onSubmit={handleSubmit} className="mt-6 space-y-4">

@@ -1,106 +1,242 @@
 @import "tailwindcss";
 
-/* SPLITZY's shared olive, brown, and cream palette. */
 :root {
-  --splitzy-olive-dark: #3f4030;
-  --splitzy-olive: #5a5940;
-  --splitzy-olive-light: #6b6045;
-  --splitzy-cream: #f3e7c9;
-  --splitzy-cream-light: #e8d9b8;
-  --splitzy-bronze: #b79a68;
-  --splitzy-surface: #4b4a36;
-  --splitzy-surface-raised: #55533d;
-  --splitzy-border: #77745a;
-
-  color: var(--splitzy-cream);
-  background: var(--splitzy-olive-dark);
   color-scheme: dark;
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+
+  --glass-bg: rgba(255, 255, 255, 0.09);
+  --glass-bg-strong: rgba(255, 255, 255, 0.13);
+  --glass-border: rgba(255, 255, 255, 0.18);
+  --glass-shadow: 0 12px 36px rgba(5, 8, 28, 0.24);
+  --text-primary: #f5f6ff;
+  --text-secondary: #d5d8ed;
+  --accent: #8295ff;
+  --accent-strong: #8b6cf2;
+
+  color: var(--text-primary);
+  background-color: #11152e;
 }
 
-/* Existing Tailwind color utilities now resolve to the brand palette. */
+/* Keep the established Tailwind markup, but give its palette the DostiDue glass look. */
 @theme {
-  --color-white: var(--splitzy-cream);
-  --color-gray-50: #55533d;
-  --color-gray-100: var(--splitzy-olive-dark);
-  --color-gray-200: #66634b;
-  --color-gray-300: var(--splitzy-border);
-  --color-gray-400: #a89a77;
-  --color-gray-500: #c8bb9b;
-  --color-gray-600: #ded1b0;
-  --color-gray-700: var(--splitzy-cream-light);
-  --color-gray-800: var(--splitzy-cream);
-  --color-gray-900: #f7edda;
+  --color-white: #f5f6ff;
+  --color-gray-50: #232846;
+  --color-gray-100: #141a35;
+  --color-gray-200: #39405f;
+  --color-gray-300: #59617f;
+  --color-gray-400: #929bb9;
+  --color-gray-500: #c2c7dc;
+  --color-gray-600: #d5d8ed;
+  --color-gray-700: #e3e6f5;
+  --color-gray-800: #f0f2ff;
+  --color-gray-900: #ffffff;
 
-  --color-blue-50: #52513b;
-  --color-blue-100: #625f45;
-  --color-blue-200: #817250;
-  --color-blue-300: #9a8054;
-  --color-blue-500: #b79a68;
-  --color-blue-600: #81704d;
-  --color-blue-700: #927c53;
-  --color-blue-800: #e8d9b8;
-  --color-blue-900: #f3e7c9;
+  --color-blue-50: #273151;
+  --color-blue-100: #313e6c;
+  --color-blue-200: #465a9a;
+  --color-blue-300: #6277c5;
+  --color-blue-500: #8295ff;
+  --color-blue-600: #6f7ff0;
+  --color-blue-700: #5d65d7;
+  --color-blue-800: #dfe3ff;
+  --color-blue-900: #f4f5ff;
 }
 
 html,
 body,
 #root {
   min-height: 100%;
-  background-color: var(--splitzy-olive-dark);
+}
+
+html {
+  min-width: 320px;
+  background: #11152e;
 }
 
 body {
-  color: var(--splitzy-cream);
+  min-width: 320px;
+  min-height: 100vh;
+  color: var(--text-primary);
+  background:
+    radial-gradient(ellipse at 12% 10%, rgba(125, 78, 220, 0.32), transparent 35%),
+    radial-gradient(ellipse at 86% 74%, rgba(42, 112, 224, 0.28), transparent 38%),
+    radial-gradient(ellipse at 55% 110%, rgba(82, 72, 185, 0.22), transparent 42%),
+    linear-gradient(135deg, #10142d 0%, #1b2045 48%, #151a3b 100%);
+  background-attachment: fixed;
 }
 
-/* White utility surfaces become warm olive panels; button text-white stays cream. */
+button,
+a,
+input,
+select,
+textarea {
+  -webkit-tap-highlight-color: transparent;
+}
+
+button,
+a {
+  transition: background-color 180ms ease, border-color 180ms ease, color 180ms ease,
+    box-shadow 180ms ease, transform 180ms ease;
+}
+
+:focus-visible {
+  outline: 3px solid rgba(165, 180, 252, 0.95);
+  outline-offset: 3px;
+}
+
+/* Tailwind white surfaces become translucent glass panels across every page and modal. */
 .bg-white {
-  background-color: var(--splitzy-surface);
+  background-color: var(--glass-bg) !important;
+  border: 1px solid var(--glass-border);
+  border-radius: 20px;
+  box-shadow: var(--glass-shadow);
+  -webkit-backdrop-filter: blur(16px);
+  backdrop-filter: blur(16px);
 }
 
-.splitzy-sidebar,
-.splitzy-navbar {
-  background-color: var(--splitzy-olive-dark);
-  color: var(--splitzy-cream);
+.bg-gray-100 {
+  background-color: transparent;
+}
+
+.bg-gray-50 {
+  background-color: rgba(255, 255, 255, 0.055);
+}
+
+.bg-blue-50 {
+  background-color: rgba(125, 145, 255, 0.18);
+}
+
+.bg-green-50 {
+  background-color: rgba(34, 197, 94, 0.14);
+}
+
+.bg-red-50 {
+  background-color: rgba(248, 113, 113, 0.14);
+}
+
+.login-background-image {
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: cover;
+  opacity: 0.32;
+}
+
+.login-background-overlay {
+  background: rgba(12, 10, 25, 0.2);
+}
+
+.bg-blue-600 {
+  background-image: linear-gradient(135deg, #6678ed, #8668e8);
+  box-shadow: 0 8px 22px rgba(93, 101, 215, 0.24);
+}
+
+.bg-green-600 {
+  background-color: #15803d;
+}
+
+.bg-red-600 {
+  background-color: #b91c1c;
+}
+
+button:hover:not(:disabled) {
+  transform: translateY(-1px);
+}
+
+button:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+button:disabled {
+  cursor: not-allowed;
+}
+
+/* Sidebar and top navigation use the same restrained glass treatment. */
+.dostidue-sidebar,
+.dostidue-navbar {
+  background: rgba(16, 20, 45, 0.68);
+  border-color: var(--glass-border);
+  color: var(--text-primary);
+  -webkit-backdrop-filter: blur(18px);
+  backdrop-filter: blur(18px);
+}
+
+.dostidue-sidebar {
+  border-right: 1px solid var(--glass-border);
+}
+
+.dostidue-navbar {
+  border-bottom: 1px solid var(--glass-border);
 }
 
 input,
 select,
 textarea {
-  color: var(--splitzy-cream);
-  background-color: var(--splitzy-surface-raised);
-  border-color: var(--splitzy-border);
+  color: var(--text-primary);
+  background-color: rgba(255, 255, 255, 0.075);
+  border-color: rgba(255, 255, 255, 0.2);
+  border-radius: 12px;
 }
 
 input::placeholder,
 textarea::placeholder {
-  color: #c8bb9b;
+  color: #b9bfd9;
+  opacity: 1;
+}
+
+select option {
+  color: var(--text-primary);
+  background-color: #202544;
 }
 
 input:focus,
 select:focus,
 textarea:focus {
-  outline-color: var(--splitzy-bronze);
+  border-color: rgba(165, 180, 252, 0.95);
+  outline-color: #a5b4fc;
+  box-shadow: 0 0 0 3px rgba(129, 140, 248, 0.2);
 }
 
 input[type="checkbox"],
 input[type="radio"] {
-  accent-color: var(--splitzy-bronze);
+  accent-color: #9a8bff;
+}
+
+[class*="border-gray-"] {
+  border-color: rgba(255, 255, 255, 0.16);
+}
+
+.brand-gradient {
+  background: linear-gradient(
+    110deg,
+    #B9954D 0%,
+    #E0C477 35%,
+    #C99189 70%,
+    #D8B66A 100%
+  );
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: #D8B66A;
+  font-family: Georgia, "Times New Roman", serif;
+  font-weight: 700;
+  letter-spacing: 0.03em;
 }
 
 .sidebar-brand-name {
-  background-image: linear-gradient(
-    105deg,
-    var(--splitzy-cream) 0%,
-    var(--splitzy-bronze) 58%,
-    var(--splitzy-olive-light) 100%
-  );
-  background-clip: text;
-  color: transparent;
   font-size: 24px;
-  font-weight: 700;
-  letter-spacing: 0.5px;
   line-height: 1.2;
   white-space: nowrap;
-  -webkit-background-clip: text;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
 }

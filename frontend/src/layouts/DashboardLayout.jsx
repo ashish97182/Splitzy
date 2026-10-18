@@ -15,14 +15,14 @@ function DashboardLayout() {
         <div className="min-h-screen bg-gray-100">
 
             {/* Sidebar */}
-            <aside className="splitzy-sidebar fixed left-0 top-0 z-40 flex h-screen w-64 flex-col shadow-md max-lg:static max-lg:h-auto max-lg:w-full max-lg:flex-row max-lg:flex-wrap max-lg:items-center">
+            <aside className="dostidue-sidebar fixed left-0 top-0 z-40 flex h-screen w-64 flex-col shadow-md max-lg:static max-lg:h-auto max-lg:w-full max-lg:flex-row max-lg:flex-wrap max-lg:items-center">
                 <div className="flex items-center gap-3 p-6 max-lg:p-4">
                     <img
                         src={logo}
-                        alt="SPLITZY logo"
+                        alt="DostiDue logo"
                         className="block h-12 w-12 rounded-full object-cover"
                     />
-                    <h1 className="sidebar-brand-name">SPLITZY</h1>
+                    <h1 className="sidebar-brand-name brand-gradient">DostiDue</h1>
                 </div>
 
                 <nav className="space-y-2 px-4 max-lg:flex max-lg:flex-wrap max-lg:gap-1 max-lg:space-y-0">
@@ -92,7 +92,7 @@ function DashboardLayout() {
             <main className="ml-64 min-h-screen max-lg:ml-0">
 
                 {/* Navbar */}
-                <header className="splitzy-navbar flex h-16 items-center justify-between px-8 shadow-sm max-sm:min-h-16 max-sm:h-auto max-sm:flex-wrap max-sm:gap-3 max-sm:px-4 max-sm:py-3">
+                <header className="dostidue-navbar flex h-16 items-center justify-between px-8 shadow-sm max-sm:min-h-16 max-sm:h-auto max-sm:flex-wrap max-sm:gap-3 max-sm:px-4 max-sm:py-3">
                     <h2 className="text-xl font-semibold text-gray-800">
                         Dashboard
                     </h2>

@@ -53,7 +53,7 @@ console.log("Test users ready");
 // Create group
 const group = await prisma.groups.create({
   data: {
-    name: "Splitzy Test Group",
+    name: "DostiDue Test Group",
     description: "Testing expense splitting",
     createdBy: rahul.id,
     createdAt: new Date(),
