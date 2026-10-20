@@ -1,17 +1,37 @@
 import express from "express";
-import healthRoutes from "./routes/healthRoutes.js"
-import authroutes from "./routes/authroutes.js"
+import cors from "cors";
+import helmet from "helmet";
+import morgan from "morgan";
+import healthRoutes from "./routes/healthRoutes.js";
+import authroutes from "./routes/authroutes.js";
 import groupRoutes from "./routes/groupRoutes.js";
 import cookieParser from "cookie-parser";
-import morgan from "morgan"; 
-const app = express();
+import { getAllowedOrigins } from "./config/environment.js";
+import { errorHandler } from "./middleware/errorHandler.js";
+import { verifyOrigin } from "./middleware/verifyOrigin.js";
 
-app.use(express.json());
-app.use(cookieParser()); 
-app.use(morgan("dev"));
+const app = express();
+const allowedOrigins = getAllowedOrigins();
+
+if (process.env.TRUST_PROXY !== undefined) {
+  app.set("trust proxy", Number(process.env.TRUST_PROXY));
+}
+
+app.use(helmet());
+app.use(cors({
+  origin(origin, callback) {
+    callback(null, !origin || allowedOrigins.includes(origin));
+  },
+  credentials: true,
+}));
+app.use(verifyOrigin(allowedOrigins));
+app.use(express.json({ limit: "100kb" }));
+app.use(cookieParser());
+app.use(morgan(process.env.NODE_ENV === "production" ? "combined" : "dev"));
 app.use("/api/", healthRoutes);
 app.use("/api/auth", authroutes);
 app.use("/api/groups", groupRoutes);
+app.use(errorHandler);
 
 
 export default app;

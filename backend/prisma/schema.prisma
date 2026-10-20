@@ -17,7 +17,9 @@ model expense_splits {
   id        String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   expenseId String  @db.Uuid
   userId    String  @db.Uuid
-  amount    Decimal @db.Decimal
+  
+  // Locked to 12 digits total, 2 decimal places (paise)
+  amount    Decimal @db.Decimal(12, 2)
 
   expenses expenses @relation(fields: [expenseId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   users    users    @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction)
@@ -26,25 +28,28 @@ model expense_splits {
   @@index([userId], map: "idx_expense_splits_userId")
 }
 
-/// This table contains check constraints and requires additional setup for migrations.
-/// Visit https://pris.ly/d/check-constraints for more info.
 model expenses {
   id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   groupId     String    @db.Uuid
   paidBy      String    @db.Uuid
   description String    @db.VarChar
-  amount      Decimal   @db.Decimal
+  
+  // Locked to 12 digits total, 2 decimal places (paise)
+  amount      Decimal   @db.Decimal(12, 2)
+  
   category    String    @db.VarChar
   splitType   SplitType
 
-  createdAt DateTime @default(now()) @db.Timestamptz(6)
-  updatedAt DateTime @updatedAt @db.Timestamptz(6)
+  createdAt DateTime  @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime  @updatedAt @db.Timestamptz(6)
+  deletedAt DateTime? @db.Timestamptz(6)
 
   expense_splits expense_splits[]
   groups         groups           @relation(fields: [groupId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   users          users            @relation(fields: [paidBy], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
   @@index([groupId], map: "idx_expenses_groupId")
+  @@index([groupId, deletedAt], map: "idx_expenses_groupId_deletedAt")
 }
 
 model group_members {
@@ -62,38 +67,20 @@ model group_members {
 }
 
 model groups {
-  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  name        String   @db.VarChar
-  description String   @db.VarChar
-  createdBy   String   @db.Uuid
-  createdAt   DateTime @default(now()) @db.Timestamptz(6)
-  updatedAt   DateTime @updatedAt @db.Timestamptz(6)
+  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name        String    @db.VarChar
+  description String    @db.VarChar
+  createdBy   String    @db.Uuid
+  createdAt   DateTime  @default(now()) @db.Timestamptz(6)
+  updatedAt   DateTime  @updatedAt @db.Timestamptz(6)
+  deletedAt   DateTime? @db.Timestamptz(6)
 
   expenses      expenses[]
   group_members group_members[]
-  settlements   settlements[]
-
+  
   users users @relation("groups_createdBy", fields: [createdBy], references: [id], onDelete: NoAction, onUpdate: NoAction)
-}
 
-model settlements {
-  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  groupId   String   @db.Uuid
-  paidBy    String   @db.Uuid
-  paidTo    String   @db.Uuid
-  amount    Decimal  @db.Decimal
-  status    String   @db.VarChar
-  createdAt DateTime @default(now()) @db.Timestamptz(6)
-
-  groups groups @relation(fields: [groupId], references: [id], onDelete: NoAction, onUpdate: NoAction)
-
-  users_settlements_paidByTousers users @relation("settlements_paidByTousers", fields: [paidBy], references: [id], onDelete: NoAction, onUpdate: NoAction)
-
-  users_settlements_paidToTousers users @relation("settlements_paidToTousers", fields: [paidTo], references: [id], onDelete: NoAction, onUpdate: NoAction)
-
-  @@index([groupId], map: "idx_settlements_groupId")
-  @@index([paidBy], map: "idx_settlements_paidBy")
-  @@index([paidTo], map: "idx_settlements_paidTo")
+  @@index([deletedAt], map: "idx_groups_deletedAt")
 }
 
 model users {
@@ -105,13 +92,11 @@ model users {
   createdAt    DateTime @default(now()) @db.Timestamp(6)
   updatedAt    DateTime @updatedAt @db.Timestamp(6)
 
-  expense_splits                        expense_splits[]
-  expenses                              expenses[]
-  group_members                         group_members[]
-  refresh_tokens                        refresh_tokens[]
-  groups_created                        groups[]         @relation("groups_createdBy")
-  settlements_settlements_paidByTousers settlements[]    @relation("settlements_paidByTousers")
-  settlements_settlements_paidToTousers settlements[]    @relation("settlements_paidToTousers")
+  expense_splits expense_splits[]
+  expenses       expenses[]
+  group_members  group_members[]
+  refresh_tokens refresh_tokens[]
+  groups_created groups[]         @relation("groups_createdBy")
 }
 
 model refresh_tokens {

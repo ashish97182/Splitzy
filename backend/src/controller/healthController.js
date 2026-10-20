@@ -1,8 +1,40 @@
-const healthcheck = (req, res) => {
+import prisma from "../config/db.js";
+import { isEmailConfigured } from "../../services/mail/email.service.js";
+
+export const liveness = (req, res) => {
   res.json({
     success: true,
-    message: "Splitzy api is running",
+    status: "alive",
   });
 };
 
-export default healthcheck;
+export const readiness = async (req, res) => {
+  let timeout;
+  try {
+    await Promise.race([
+      prisma.$queryRaw`SELECT 1`,
+      new Promise((_, reject) => {
+        timeout = setTimeout(() => reject(new Error("Database readiness timed out.")), 2000);
+      }),
+    ]);
+    return res.status(200).json({
+      success: true,
+      status: "ready",
+      dependencies: {
+        database: "ready",
+        email: isEmailConfigured() ? "configured" : "disabled",
+      },
+    });
+  } catch {
+    return res.status(503).json({
+      success: false,
+      status: "not_ready",
+      dependencies: {
+        database: "unavailable",
+        email: isEmailConfigured() ? "configured" : "disabled",
+      },
+    });
+  } finally {
+    clearTimeout(timeout);
+  }
+};

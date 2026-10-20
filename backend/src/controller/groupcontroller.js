@@ -1,6 +1,12 @@
 import prisma from "../config/db.js";
-import {calculateBalances} from "../../services/balanceService.js";
-import { sendGroupInviteEmail } from "../../services/mail/email.service.js";
+import { calculateBalances } from "../../services/balanceService.js";
+import { fromMinorUnits } from "../../services/money.js";
+import { lockActiveGroup } from "../../services/groupLock.js";
+import { isSerializationConflict } from "../../services/isSerializationConflict.js";
+import {
+  isEmailConfigured,
+  sendGroupInviteEmail,
+} from "../../services/mail/email.service.js";
 // ----------------------------------------------------
 // POST /api/groups
 // ----------------------------------------------------
@@ -60,6 +66,7 @@ export const getUserGroups = async (req, res) => {
 
     const groups = await prisma.groups.findMany({
       where: {
+        deletedAt: null,
         group_members: {
           some: {
             userId: userId,
@@ -98,6 +105,7 @@ export const getGroupById = async (req, res) => {
     const group = await prisma.groups.findFirst({
       where: {
         id: groupId,
+        deletedAt: null,
         group_members: {
           some: {
             userId: userId, 
@@ -146,21 +154,21 @@ export const addGroupMember = async (req, res) => {
         .json({ error: "Email is required to add a member." });
     }
     const normalizedEmail = email.trim().toLowerCase();
-    const group = await prisma.groups.findUnique({
-      where: { id: groupId },
+    const group = await prisma.groups.findFirst({
+      where: { id: groupId, deletedAt: null },
     });
 
     if (!group) {
       return res.status(404).json({ error: "Group not found." });
     }
-    const isRequesterMember = await prisma.group_members.findFirst({
+    const requesterMembership = await prisma.group_members.findFirst({
       where: { groupId: groupId, userId: requesterId },
     });
 
-    if (!isRequesterMember) {
+    if (!requesterMembership || requesterMembership.role !== "ADMIN") {
       return res
         .status(403)
-        .json({ error: "You must be a member of the group to add others." });
+        .json({ error: "Only group admins can add members." });
     }
     const userToAdd = await prisma.users.findUnique({
       where: { email: normalizedEmail },
@@ -180,35 +188,57 @@ export const addGroupMember = async (req, res) => {
         .status(400)
         .json({ error: "User is already a member of this group." });
     }
-    const newMember = await prisma.group_members.create({
-      data: {
-        groupId: groupId,
-        userId: userToAdd.id,
-        role: "MEMBER",
-        joinedAt: new Date(),
-      },
-    });
+    const memberResult = await prisma.$transaction(async (tx) => {
+      if (!await lockActiveGroup(tx, groupId)) {
+        return { error: { status: 404, message: "Group not found." } };
+      }
+      const adminMembership = await tx.group_members.findFirst({
+        where: { groupId, userId: requesterId, role: "ADMIN" },
+      });
+      if (!adminMembership) {
+        return { error: { status: 403, message: "Only group admins can add members." } };
+      }
+      const memberExists = await tx.group_members.findFirst({
+        where: { groupId, userId: userToAdd.id },
+      });
+      if (memberExists) {
+        return { error: { status: 400, message: "User is already a member of this group." } };
+      }
+      const member = await tx.group_members.create({
+        data: { groupId, userId: userToAdd.id, role: "MEMBER" },
+      });
+      return { member };
+    }, { isolationLevel: "Serializable" });
+    if (memberResult.error) {
+      return res.status(memberResult.error.status).json({ error: memberResult.error.message });
+    }
+    const newMember = memberResult.member;
 
     // 6. 🌟 Non-blocking background email dispatch
     // We grab the requester's name directly from the JWT (req.user.name) if available,
     // or fallback to "A group member"
-    sendGroupInviteEmail(
-      userToAdd.email,
-      userToAdd.name,
-      group.name,
-      req.user.name || "A group member",
-    ).catch((emailErr) => {
-      console.error(
-        `Failed to send group invite email to ${userToAdd.email}:`,
-        emailErr.message,
-      );
-    });
+    if (isEmailConfigured()) {
+      sendGroupInviteEmail(
+        userToAdd.email,
+        userToAdd.name,
+        group.name,
+        req.user.name || "A group member",
+      ).catch((emailErr) => {
+        console.error(
+          `Failed to send group invite email to ${userToAdd.email}:`,
+          emailErr.message,
+        );
+      });
+    }
 
     return res.status(201).json({
       message: "Member added successfully!",
       member: newMember,
     });
   } catch (error) {
+    if (isSerializationConflict(error)) {
+      return res.status(409).json({ error: "Group changed concurrently. Please retry." });
+    }
     console.error("Error in addGroupMember:", error);
     return res.status(500).json({ error: "Internal server error." });
   }
@@ -218,58 +248,119 @@ export const addGroupMember = async (req, res) => {
 // ----------------------------------------------------------
 // REMOVE MEMBER: DELETE /api/groups/:groupId/members/:userId
 // ----------------------------------------------------------
+
 export const removeGroupMember = async (req, res) => {
+  const { groupId, userId } = req.params;
+  const requesterId = req.user.userId;
+
+  if (userId === requesterId) {
+    return res.status(400).json({
+      error: "You cannot remove yourself.",
+    });
+  }
+
   try {
-    const { groupId, userId } = req.params;
-    const requesterId = req.user.userId;
+    const result = await prisma.$transaction(
+      async (tx) => {
+        // Ensure the group exists and is active.
+        if (!(await lockActiveGroup(tx, groupId))) {
+          return {
+            status: 404,
+            body: { error: "Group not found." },
+          };
+        }
 
-    const requesterMembership = await prisma.group_members.findFirst({
-      where: { groupId, userId: requesterId },
-    });
+        // Only group admins can remove members.
+        const requesterMembership = await tx.group_members.findFirst({
+          where: {
+            groupId,
+            userId: requesterId,
+          },
+        });
 
-    if (!requesterMembership || requesterMembership.role !== "ADMIN") {
-      return res
-        .status(403)
-        .json({ error: "Only group admins can remove members." });
-    }
+        if (!requesterMembership || requesterMembership.role !== "ADMIN") {
+          return {
+            status: 403,
+            body: {
+              error: "Only group admins can remove members.",
+            },
+          };
+        }
 
-    if (userId === requesterId) {
-      return res.status(400).json({ error: "You cannot remove yourself." });
-    }
+        // Find the target membership.
+        const targetMembership = await tx.group_members.findFirst({
+          where: {
+            groupId,
+            userId,
+          },
+        });
 
-    const targetMembership = await prisma.group_members.findFirst({
-      where: { groupId, userId },
-    });
+        if (!targetMembership) {
+          return {
+            status: 404,
+            body: {
+              error: "User is not a member of this group.",
+            },
+          };
+        }
 
-    if (!targetMembership) {
-      return res
-        .status(404)
-        .json({ error: "User is not a member of this group." });
-    }
+        // Calculate balances within the same transaction.
+        const balances = await calculateBalances(groupId, tx);
 
-    const balances = await calculateBalances(groupId);
+        const balanceMinorUnits = balances.balancesMinorUnits[userId] ?? 0;
 
-    const userBalance = balances.summary.find((b) => b.userId === userId);
-    if (userBalance && userBalance.netBalance !== 0) {
-      const action = userBalance.netBalance > 0 ? "is owed" : "owes";
-      const amount = Math.abs(userBalance.netBalance);
+        if (balanceMinorUnits !== 0) {
+          const action = balanceMinorUnits > 0 ? "is owed" : "owes";
 
-      return res.status(400).json({
-        error: `Cannot remove member. They still ${action} $${amount} in this group. Please settle all debts first.`,
+          const amount = new Intl.NumberFormat("en-IN", {
+            style: "currency",
+            currency: "INR",
+          }).format(fromMinorUnits(Math.abs(balanceMinorUnits)));
+
+          return {
+            status: 400,
+            body: {
+              error: `Cannot remove member. They still ${action} ${amount} in this group. Please settle all debts first.`,
+            },
+          };
+        }
+
+        await tx.group_members.delete({
+          where: {
+            id: targetMembership.id,
+          },
+        });
+
+        return {
+          status: 200,
+          body: {
+            message: "Member removed from the group successfully.",
+          },
+        };
+      },
+      {
+        maxWait: 10000,
+        timeout: 20000,
+        isolationLevel: "Serializable",
+      },
+    );
+
+    return res.status(result.status).json(result.body);
+  } catch (error) {
+    if (isSerializationConflict(error)) {
+      return res.status(409).json({
+        error: "Group ledger changed concurrently. Please retry.",
       });
     }
-    await prisma.group_members.delete({
-      where: { id: targetMembership.id },
-    });
 
-    return res
-      .status(200)
-      .json({ message: "Member removed from the group successfully." });
-  } catch (error) {
     console.error("Error removing member:", error);
-    return res.status(500).json({ error: "Internal server error." });
+
+    return res.status(500).json({
+      error: "Internal server error.",
+    });
   }
 };
+
 
 // ----------------------------------------------------
 // EDIT GROUP: PUT /api/groups/:groupId
@@ -279,6 +370,14 @@ export const updateGroup = async (req, res) => {
     const { groupId } = req.params;
     const { name, description } = req.body;
     const requesterId = req.user.userId;
+
+    const group = await prisma.groups.findFirst({
+      where: { id: groupId, deletedAt: null },
+      select: { id: true },
+    });
+    if (!group) {
+      return res.status(404).json({ error: "Group not found." });
+    }
 
     // 1. Verify the requester is an ADMIN
     const requesterMembership = await prisma.group_members.findFirst({
@@ -293,7 +392,10 @@ export const updateGroup = async (req, res) => {
     // (Assuming your table is called `groups`. Change to `group` if your schema uses singular)
     const updatedGroup = await prisma.groups.update({
       where: { id: groupId },
-      data: { name, description }, 
+      data: {
+        ...(name !== undefined && { name }),
+        ...(description !== undefined && { description }),
+      },
     });
 
     return res.status(200).json({ 
@@ -314,7 +416,14 @@ export const deleteGroup = async (req, res) => {
     const { groupId } = req.params;
     const requesterId = req.user.userId;
 
-    // 1. Verify the requester is an ADMIN
+    const group = await prisma.groups.findFirst({
+      where: { id: groupId, deletedAt: null },
+      select: { id: true },
+    });
+    if (!group) {
+      return res.status(404).json({ error: "Group not found." });
+    }
+
     const requesterMembership = await prisma.group_members.findFirst({
       where: { groupId, userId: requesterId },
     });
@@ -323,25 +432,33 @@ export const deleteGroup = async (req, res) => {
       return res.status(403).json({ error: "Only group admins can delete the group." });
     }
 
-    // 2. Fetch all expenses in this group so we can delete their splits
-    const groupExpenses = await prisma.expenses.findMany({
-      where: { groupId },
-    });
-    const expenseIds = groupExpenses.map((expense) => expense.id);
+    const result = await prisma.$transaction(async (tx) => {
+      if (!await lockActiveGroup(tx, groupId)) {
+        return { status: 404, error: "Group not found." };
+      }
+      const adminMembership = await tx.group_members.findFirst({
+        where: { groupId, userId: requesterId, role: "ADMIN" },
+      });
+      if (!adminMembership) {
+        return { status: 403, error: "Only group admins can delete the group." };
+      }
+      await tx.groups.update({
+        where: { id: groupId },
+        data: { deletedAt: new Date() },
+      });
+      return { status: 200 };
+    }, { isolationLevel: "Serializable" });
+    if (result.status !== 200) {
+      return res.status(result.status).json({ error: result.error });
+    }
 
-    // 3. Use a safe $transaction to manually cascade the deletion
-    // We must delete from the "bottom up" (Splits -> Expenses -> Members -> Group)
-    await prisma.$transaction([
-      prisma.expense_splits.deleteMany({ where: { expenseId: { in: expenseIds } } }),
-      prisma.expenses.deleteMany({ where: { groupId } }),
-      prisma.group_members.deleteMany({ where: { groupId } }),
-      prisma.groups.delete({ where: { id: groupId } }),
-    ]);
-
-    return res.status(200).json({ 
-      message: "Group and all related expenses have been permanently deleted." 
+    return res.status(200).json({
+      message: "Group archived successfully. Its ledger history has been preserved."
     });
   } catch (error) {
+    if (isSerializationConflict(error)) {
+      return res.status(409).json({ error: "Group changed concurrently. Please retry." });
+    }
     console.error("Error deleting group:", error);
     return res.status(500).json({ error: "Internal server error." });
   }

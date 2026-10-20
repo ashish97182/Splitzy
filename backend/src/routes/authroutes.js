@@ -8,15 +8,18 @@ import {
   logoutAllDevices,
 } from "../controller/authcontroller.js";
 import {protect} from "../middleware/authMiddleware.js";
+import { validateRequest } from "../middleware/validateRequest.js";
+import { loginSchema, registerSchema } from "../validation/schemas.js";
+import { authRateLimit } from "../middleware/rateLimit.js";
 
 const router = express.Router();
 
 // Change "/auth/api" to "/register"
-router.post("/register", registerUser);
-router.post("/login", login);
+router.post("/register", authRateLimit, validateRequest({ body: registerSchema }), registerUser);
+router.post("/login", authRateLimit, validateRequest({ body: loginSchema }), login);
 router.post("/logout", logout);
-router.post("/logout-all", logoutAllDevices);
-router.post("/refresh",protect, refreshAccessToken);
+router.post("/logout-all", protect, logoutAllDevices);
+router.post("/refresh", authRateLimit, refreshAccessToken);
 
 router.get("/test", protect, (req, res) => {
   res.json({

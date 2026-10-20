@@ -1,21 +1,23 @@
 
+import { fromMinorUnits, toMinorUnits } from "./money.js";
+
 function simplifyDebts(balances) {
   const creditors = [];
   const debtors = [];
 
   // Separate creditors and debtors
   for (const personId in balances) {
-    const balance = balances[personId];
+    const balance = toMinorUnits(balances[personId]);
 
     if (balance > 0) {
       creditors.push({
         personId,
-        balance
+        balance,
       });
     } else if (balance < 0) {
       debtors.push({
         personId,
-        balance
+        balance,
       });
     }
   }
@@ -35,7 +37,7 @@ function simplifyDebts(balances) {
     transactions.push({
       from: debtors[i].personId,
       to: creditors[j].personId,
-      amount
+      amount: fromMinorUnits(amount),
     });
 
     debtors[i].balance += amount;
