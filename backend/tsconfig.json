@@ -6,11 +6,14 @@
     "lib": ["ES2022"],
     "outDir": "./dist",
     "rootDir": "./",
+    "allowJs": true,
+    "checkJs": false,
     "strict": true,
+    "noEmitOnError": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true
   },
-  "include": ["src/**/*", "prisma.config.ts", "services", "src/app.js", "server.js"],
+  "include": ["src/**/*.js", "services/**/*.js", "server.js"],
   "exclude": ["node_modules", "dist"]
 }

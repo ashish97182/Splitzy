@@ -1,13 +1,18 @@
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
+import { randomUUID } from "node:crypto";
 import prisma from "../config/db.js";
 
 import {
   hashRefreshToken,
   refreshCookieOptions,
   REFRESH_TOKEN_MS,
+  clearRefreshCookie,
 } from "../utils/tokenUtils.js";
-import { sendRegisteredEmail } from "../../services/mail/email.service.js";
+import {
+  isEmailConfigured,
+  sendRegisteredEmail,
+} from "../../services/mail/email.service.js";
 // ----------------------------------------------------
 // POST /api/auth/register
 // ----------------------------------------------------
@@ -46,12 +51,14 @@ export const registerUser = async (req, res) => {
     });
 
     // 6. Non-blocking email dispatch (logs errors without blocking HTTP response)
-    sendRegisteredEmail(newUser.email, newUser.name).catch((emailErr) => {
-      console.error(
-        `Failed to dispatch welcome email to ${newUser.email}:`,
-        emailErr.message,
-      );
-    });
+    if (isEmailConfigured()) {
+      sendRegisteredEmail(newUser.email, newUser.name).catch((emailErr) => {
+        console.error(
+          `Failed to dispatch welcome email to ${newUser.email}:`,
+          emailErr.message,
+        );
+      });
+    }
 
     return res.status(201).json({
       message: "User registered successfully",
@@ -125,6 +132,7 @@ export const login = async (req, res) => {
       {
         userId: user.id,
         tokenType: "refresh",
+        jti: randomUUID(),
       },
       process.env.JWT_REFRESH_SECRET,
       {
@@ -226,6 +234,7 @@ export const refreshAccessToken = async (req, res) => {
       {
         userId: decoded.userId,
         tokenType: "refresh",
+        jti: randomUUID(),
       },
       process.env.JWT_REFRESH_SECRET,
       {
@@ -357,9 +366,10 @@ export const refreshAccessToken = async (req, res) => {
 // ----------------------------------------------------
 
 export const logout = async (req, res) => {
-  try {
-    const refreshToken = req.cookies?.jwt;
+  const refreshToken = req.cookies?.jwt;
+  clearRefreshCookie(res);
 
+  try {
     if (refreshToken) {
       await prisma.refresh_tokens.deleteMany({
         where: {
@@ -367,8 +377,6 @@ export const logout = async (req, res) => {
         },
       });
     }
-    res.clearCookie("jwt", refreshCookieOptions);
-
     return res.status(200).json({
       message: "Logged out successfully.",
     });
@@ -382,6 +390,8 @@ export const logout = async (req, res) => {
 };
 
 export const logoutAllDevices = async (req, res) => {
+  clearRefreshCookie(res);
+
   try {
     const userId = req.user.userId;
 
@@ -393,8 +403,6 @@ export const logoutAllDevices = async (req, res) => {
     });
 
     // Clear refresh token cookie on the current device
-    res.clearCookie("jwt", refreshCookieOptions);
-
     return res.status(200).json({
       message: "Logged out from all devices successfully.",
     });

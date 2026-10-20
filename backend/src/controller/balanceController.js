@@ -9,6 +9,14 @@ export const getGroupBalances = async (req, res) => {
   try {
     const { groupId } = req.params;
     const requesterId = req.user.userId;
+    const group = await prisma.groups.findFirst({
+      where: { id: groupId, deletedAt: null },
+      select: { id: true },
+    });
+    if (!group) {
+      return res.status(404).json({ error: "Group not found." });
+    }
+
     const isMember = await prisma.group_members.findFirst({
       where: { groupId, userId: requesterId },
     });

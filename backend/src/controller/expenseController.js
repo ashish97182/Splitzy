@@ -1,6 +1,7 @@
 import prisma from "../config/db.js";
-// 👉 Import your new service
 import calculateSplits from "../../services/splitService.js";
+import { lockActiveGroup } from "../../services/groupLock.js";
+import { isSerializationConflict } from "../../services/isSerializationConflict.js";
 
 // ----------------------------------------------------
 // POST /api/groups/:groupId/expenses
@@ -11,6 +12,14 @@ export const addExpense = async (req, res) => {
     const { description, amount, category, splitType, splits, paidBy } =
       req.body;
     const requesterId = req.user.userId;
+
+    const group = await prisma.groups.findFirst({
+      where: { id: groupId, deletedAt: null },
+      select: { id: true },
+    });
+    if (!group) {
+      return res.status(404).json({ error: "Group not found." });
+    }
 
     if (!description || !amount || !splits || splits.length === 0) {
       return res
@@ -69,8 +78,26 @@ export const addExpense = async (req, res) => {
     }
 
     // 5. Run the Database Transaction
-    const newExpense = await prisma.$transaction(
+    const result = await prisma.$transaction(
       async (tx) => {
+        if (!await lockActiveGroup(tx, groupId)) {
+          return { failure: { status: 404, error: "Group not found." } };
+        }
+
+        const currentMemberIds = (await tx.group_members.findMany({
+          where: { groupId },
+          select: { userId: true },
+        })).map((member) => member.userId);
+        if (!currentMemberIds.includes(requesterId)) {
+          return { failure: { status: 403, error: "You are not a member of this group." } };
+        }
+        if (!currentMemberIds.includes(payerId)) {
+          return { failure: { status: 400, error: "The person who paid must be a member of the group." } };
+        }
+        if (participants.some((participantId) => !currentMemberIds.includes(participantId))) {
+          return { failure: { status: 400, error: "Every split participant must be a current group member." } };
+        }
+
         const expense = await tx.expenses.create({
           data: {
             groupId: groupId,
@@ -78,7 +105,7 @@ export const addExpense = async (req, res) => {
             description,
             amount,
             category: category || "GENERAL",
-            splitType: splitType || "CUSTOM",
+            splitType,
             createdAt: new Date(),
             updatedAt: new Date(),
           },
@@ -95,7 +122,8 @@ export const addExpense = async (req, res) => {
           data: finalSplitsToInsert,
         });
 
-        return tx.expenses.findUnique({
+        return {
+          expense: await tx.expenses.findUnique({
           where: { id: expense.id },
           include: {
             users: { select: { id: true, name: true } },
@@ -103,16 +131,23 @@ export const addExpense = async (req, res) => {
               include: { users: { select: { name: true } } },
             },
           },
-        });
+          }),
+        };
       },
-      { maxWait: 5000, timeout: 10000 },
+      { maxWait: 5000, timeout: 10000, isolationLevel: "Serializable" },
     );
+    if (result.failure) {
+      return res.status(result.failure.status).json({ error: result.failure.error });
+    }
 
     return res.status(201).json({
       message: "Expense added successfully!",
-      expense: newExpense,
+      expense: result.expense,
     });
   } catch (error) {
+    if (isSerializationConflict(error)) {
+      return res.status(409).json({ error: "Group ledger changed concurrently. Please retry." });
+    }
     console.error("Error in addExpense:", error);
     return res.status(500).json({ error: "Internal server error." });
   }
@@ -125,6 +160,14 @@ export const getGroupExpenses = async (req, res) => {
   try {
     const { groupId } = req.params;
     const requesterId = req.user.userId;
+    const group = await prisma.groups.findFirst({
+      where: { id: groupId, deletedAt: null },
+      select: { id: true },
+    });
+    if (!group) {
+      return res.status(404).json({ error: "Group not found." });
+    }
+
     const isMember = await prisma.group_members.findFirst({
       where: { groupId, userId: requesterId },
     });
@@ -136,7 +179,7 @@ export const getGroupExpenses = async (req, res) => {
     }
 
     const expenses = await prisma.expenses.findMany({
-      where: { groupId: groupId },
+      where: { groupId, deletedAt: null },
       orderBy: { createdAt: "desc" },
       include: {
         users: {
@@ -168,6 +211,14 @@ export const deleteExpense = async (req, res) => {
     const { groupId, expenseId } = req.params;
     const requesterId = req.user.userId;
 
+    const group = await prisma.groups.findFirst({
+      where: { id: groupId, deletedAt: null },
+      select: { id: true },
+    });
+    if (!group) {
+      return res.status(404).json({ error: "Group not found." });
+    }
+
     // 1. Check group membership
     const membership = await prisma.group_members.findFirst({
       where: {
@@ -187,6 +238,7 @@ export const deleteExpense = async (req, res) => {
       where: {
         id: expenseId,
         groupId,
+        deletedAt: null,
       },
       include: {
         expense_splits: {
@@ -218,24 +270,41 @@ export const deleteExpense = async (req, res) => {
       });
     }
 
-    // 4. Delete splits and expense atomically
-    await prisma.$transaction(async (tx) => {
-      await tx.expense_splits.deleteMany({
-        where: { expenseId },
+    const result = await prisma.$transaction(async (tx) => {
+      if (!await lockActiveGroup(tx, groupId)) {
+        return { status: 404, error: "Group not found." };
+      }
+      const currentMembership = await tx.group_members.findFirst({
+        where: { groupId, userId: requesterId },
       });
+      const currentExpense = await tx.expenses.findFirst({
+        where: { id: expenseId, groupId, deletedAt: null },
+        include: { expense_splits: { select: { userId: true } } },
+      });
+      if (!currentMembership) return { status: 403, error: "You are not in this group." };
+      if (!currentExpense) return { status: 404, error: "Expense not found." };
+      const canDelete = currentExpense.paidBy === requesterId
+        || currentExpense.expense_splits.some((split) => split.userId === requesterId)
+        || currentMembership.role === "ADMIN";
+      if (!canDelete) return { status: 403, error: "Unauthorized to delete this expense." };
 
-      await tx.expenses.delete({
-        where: {
-          id: expenseId,
-          groupId,
-        },
+      await tx.expenses.update({
+        where: { id: expenseId },
+        data: { deletedAt: new Date() },
       });
-    });
+      return { status: 200 };
+    }, { isolationLevel: "Serializable" });
+    if (result.status !== 200) {
+      return res.status(result.status).json({ error: result.error });
+    }
 
     return res.status(200).json({
-      message: "Expense deleted successfully!",
+      message: "Expense archived successfully. Its history has been preserved.",
     });
   } catch (error) {
+    if (isSerializationConflict(error)) {
+      return res.status(409).json({ error: "Group ledger changed concurrently. Please retry." });
+    }
     console.error("Error deleting expense:", error);
 
     return res.status(500).json({
@@ -256,6 +325,14 @@ export const updateExpense = async (req, res) => {
 
     const requesterId = req.user.userId;
 
+    const group = await prisma.groups.findFirst({
+      where: { id: groupId, deletedAt: null },
+      select: { id: true },
+    });
+    if (!group) {
+      return res.status(404).json({ error: "Group not found." });
+    }
+
     // 1. Check whether the requester belongs to the group
     const membership = await prisma.group_members.findFirst({
       where: {
@@ -275,12 +352,19 @@ export const updateExpense = async (req, res) => {
       where: {
         id: expenseId,
         groupId,
+        deletedAt: null,
       },
     });
 
     if (!existingExpense) {
       return res.status(404).json({
         error: "Expense not found.",
+      });
+    }
+
+    if (existingExpense.category === "SETTLEMENT") {
+      return res.status(400).json({
+        error: "Settlement entries must be changed through the settlement routes.",
       });
     }
 
@@ -383,8 +467,38 @@ export const updateExpense = async (req, res) => {
     }
 
     // 9. Update expense and replace splits in one transaction
-    const updatedExpense = await prisma.$transaction(
+    const updateResult = await prisma.$transaction(
       async (tx) => {
+        if (!await lockActiveGroup(tx, groupId)) {
+          return { failure: { status: 404, error: "Group not found." } };
+        }
+        const currentMembership = await tx.group_members.findFirst({
+          where: { groupId, userId: requesterId },
+        });
+        const currentExpense = await tx.expenses.findFirst({
+          where: { id: expenseId, groupId, deletedAt: null },
+        });
+        if (!currentMembership) {
+          return { failure: { status: 403, error: "You are not a member of this group." } };
+        }
+        if (!currentExpense) {
+          return { failure: { status: 404, error: "Expense not found." } };
+        }
+        if (currentExpense.category === "SETTLEMENT") {
+          return { failure: { status: 400, error: "Settlement entries must be changed through the settlement routes." } };
+        }
+        if (currentExpense.paidBy !== requesterId && currentMembership.role !== "ADMIN") {
+          return { failure: { status: 403, error: "Only the Payer or an Admin can edit this." } };
+        }
+        const currentMemberIds = (await tx.group_members.findMany({
+          where: { groupId },
+          select: { userId: true },
+        })).map((member) => member.userId);
+        if (!currentMemberIds.includes(payerId)
+          || participants.some((participantId) => !currentMemberIds.includes(participantId))) {
+          return { failure: { status: 400, error: "The payer and all split participants must be current group members." } };
+        }
+
         await tx.expenses.update({
           where: { id: expenseId },
           data: {
@@ -413,7 +527,8 @@ export const updateExpense = async (req, res) => {
         });
 
         // Return the updated expense with related data
-        return tx.expenses.findUnique({
+        return {
+          expense: await tx.expenses.findUnique({
           where: { id: expenseId },
           include: {
             users: {
@@ -432,19 +547,27 @@ export const updateExpense = async (req, res) => {
               },
             },
           },
-        });
+          }),
+        };
       },
       {
         maxWait: 5000,
         timeout: 10000,
+        isolationLevel: "Serializable",
       },
     );
+    if (updateResult.failure) {
+      return res.status(updateResult.failure.status).json({ error: updateResult.failure.error });
+    }
 
     return res.status(200).json({
       message: "Expense updated successfully!",
-      expense: updatedExpense,
+      expense: updateResult.expense,
     });
   } catch (error) {
+    if (isSerializationConflict(error)) {
+      return res.status(409).json({ error: "Group ledger changed concurrently. Please retry." });
+    }
     console.error("Error updating expense:", error);
 
     return res.status(500).json({

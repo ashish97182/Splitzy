@@ -22,47 +22,120 @@ import {
   getGroupSettlements,
   deleteSettlement,
 } from "../controller/settlementController.js";
+import { validateRequest } from "../middleware/validateRequest.js";
+import {
+  addMemberSchema,
+  createExpenseSchema,
+  createGroupSchema,
+  createSettlementSchema,
+  expenseParams,
+  groupIdParams,
+  memberParams,
+  settlementParams,
+  updateExpenseSchema,
+  updateGroupSchema,
+} from "../validation/schemas.js";
 const router = express.Router();
 
 // ----------------------------------------------------
 // Core Group Routes
 // ----------------------------------------------------
-router.post("/", protect, createGroup);
+router.post("/", protect, validateRequest({ body: createGroupSchema }), createGroup);
 router.get("/", protect, getUserGroups);
-router.get("/:groupId", protect, getGroupById);
+router.get("/:groupId", protect, validateRequest({ params: groupIdParams }), getGroupById);
 
 // ----------------------------------------------------
 // Group Members
 // ----------------------------------------------------
-router.post("/:groupId/members", protect, addGroupMember);
+router.post(
+  "/:groupId/members",
+  protect,
+  validateRequest({ params: groupIdParams, body: addMemberSchema }),
+  addGroupMember,
+);
 
 // ----------------------------------------------------
 // Group Expenses
 // ----------------------------------------------------
-router.post("/:groupId/expenses", protect, addExpense);
-router.get("/:groupId/expenses", protect, getGroupExpenses);
-router.delete("/:groupId/expenses/:expenseId", protect, deleteExpense);
-router.put("/:groupId/expenses/:expenseId", protect, updateExpense);
+router.post(
+  "/:groupId/expenses",
+  protect,
+  validateRequest({ params: groupIdParams, body: createExpenseSchema }),
+  addExpense,
+);
+router.get(
+  "/:groupId/expenses",
+  protect,
+  validateRequest({ params: groupIdParams }),
+  getGroupExpenses,
+);
+router.delete(
+  "/:groupId/expenses/:expenseId",
+  protect,
+  validateRequest({ params: expenseParams }),
+  deleteExpense,
+);
+router.put(
+  "/:groupId/expenses/:expenseId",
+  protect,
+  validateRequest({ params: expenseParams, body: updateExpenseSchema }),
+  updateExpense,
+);
 
 // ----------------------------------------------------
 // BALANCES
 // ----------------------------------------------------
-router.get("/:groupId/balances", protect, getGroupBalances);
+router.get(
+  "/:groupId/balances",
+  protect,
+  validateRequest({ params: groupIdParams }),
+  getGroupBalances,
+);
 // ----------------------------------------------------
 // Settlements
 // ----------------------------------------------------
 
-router.post("/:groupId/settlements", protect, addSettlement);
-router.get("/:groupId/settlements", protect, getGroupSettlements);
-router.delete("/:groupId/settlements/:settlementId", protect, deleteSettlement);
+router.post(
+  "/:groupId/settlements",
+  protect,
+  validateRequest({ params: groupIdParams, body: createSettlementSchema }),
+  addSettlement,
+);
+router.get(
+  "/:groupId/settlements",
+  protect,
+  validateRequest({ params: groupIdParams }),
+  getGroupSettlements,
+);
+router.delete(
+  "/:groupId/settlements/:settlementId",
+  protect,
+  validateRequest({ params: settlementParams }),
+  deleteSettlement,
+);
 
 
 // ----------------------------------------------------
 // Group Admin Endpoints
 // ----------------------------------------------------
-router.delete("/:groupId/members/:userId", protect, removeGroupMember);
-router.put("/:groupId", protect, updateGroup);
-router.delete("/:groupId", protect, deleteGroup);
+router.delete(
+  "/:groupId/members/:userId",
+  protect,
+  validateRequest({ params: memberParams }),
+  removeGroupMember,
+);
+router.put(
+  "/:groupId",
+  protect,
+  validateRequest({ params: groupIdParams, body: updateGroupSchema }),
+  updateGroup,
+);
+router.delete(
+  "/:groupId",
+  protect,
+  validateRequest({ params: groupIdParams }),
+  deleteGroup,
+);
 
 
 export default router;

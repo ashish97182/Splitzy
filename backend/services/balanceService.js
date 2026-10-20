@@ -1,40 +1,23 @@
 import prisma from "../src/config/db.js";
+import { fromMinorUnits } from "./money.js";
+import { calculateBalanceTotals } from "./balanceMath.js";
 
-const calculateBalances = async (groupId) => {
-  const expenses = await prisma.expenses.findMany({
-    where: { groupId: groupId },
+export { calculateBalanceTotals };
+
+const calculateBalances = async (groupId, database = prisma) => {
+  const expenses = await database.expenses.findMany({
+    where: { groupId, deletedAt: null },
+    include: { expense_splits: true },
   });
 
-  const expenseIds = expenses.map((e) => e.id);
-  const expenseSplits = await prisma.expense_splits.findMany({
-    where: { expenseId: { in: expenseIds } },
-  });
+  const balancesMinorUnits = calculateBalanceTotals(expenses);
 
-  const balances = {};
-
-  for (const expense of expenses) {
-    if (!(expense.paidBy in balances)) {
-      balances[expense.paidBy] = 0;
-    }
-    balances[expense.paidBy] += Number(expense.amount);
-  }
-
-  for (const split of expenseSplits) {
-    if (!(split.userId in balances)) {
-      balances[split.userId] = 0;
-    }
-    balances[split.userId] -= Number(split.amount);
-  }
-
-  // 5. Format it into an array so the controller can easily read it
-  // This turns { "ankush_id": 2000 } into [{ userId: "ankush_id", netBalance: 2000 }]
-  const summary = Object.keys(balances).map((userId) => ({
-    userId: userId,
-    netBalance: balances[userId],
+  const summary = Object.keys(balancesMinorUnits).map((userId) => ({
+    userId,
+    netBalance: fromMinorUnits(balancesMinorUnits[userId]),
   }));
 
-  // Return it inside an object so it perfectly matches what the controller expects
-  return { summary };
+  return { summary, balancesMinorUnits };
 };
 
 export { calculateBalances };
