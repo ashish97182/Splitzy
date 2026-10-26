@@ -6,8 +6,8 @@
   "type": "module",
   "scripts": {
     "dev": "node --watch server.js",
-    "build": "tsc",
-    "start": "node dist/server.js",
+    "build": "prisma generate",
+    "start": "node server.js",
     "test": "node --test tests/unit/*.test.js",
     "test:integration": "node --test tests/integration/*.test.js",
     "test:ci": "npm run test && node tests/require-test-database.js && npm run test:integration"
@@ -19,8 +19,8 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@prisma/adapter-pg": "^7.10.0",
-    "@prisma/client": "^7.10.0",
+    "@prisma/adapter-pg": "^6.19.3",
+    "@prisma/client": "^6.19.3",
     "bcrypt": "^5.1.1",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.6",
@@ -36,6 +36,6 @@
     "zod": "^3.24.2"
   },
   "devDependencies": {
-    "prisma": "^7.10.0"
+    "prisma": "^6.19.3"
   }
 }
