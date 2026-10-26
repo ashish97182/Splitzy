@@ -1,0 +1,151 @@
+%PDF-1.4
+%‚„œ”
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [7 0 R 9 0 R] /Count 2 >>
+endobj
+3 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>
+endobj
+4 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>
+endobj
+5 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Courier >>
+endobj
+6 0 obj
+<< /Length 5596 >>
+stream
+BT /F2 21 Tf 48 744 Td (Splitzy Backend API) Tj ET
+BT /F1 9.5 Tf 48 708 Td (Base URL: /api. JSON endpoints use Content-Type: application/json.) Tj ET
+BT /F1 9.5 Tf 48 695.175 Td (Authentication failures return 401; invalid bodies and paths return 400 with) Tj ET
+BT /F1 9.5 Tf 48 682.3499999999999 Td (field-level details; authorization failures return 403; missing resources) Tj ET
+BT /F1 9.5 Tf 48 669.5249999999999 Td (return 404; throttling returns 429; unexpected server errors return a generic) Tj ET
+BT /F1 9.5 Tf 48 656.6999999999998 Td (500 without database or stack details.) Tj ET
+BT /F2 15 Tf 48 638.8749999999998 Td (Health) Tj ET
+BT /F1 8 Tf 54 611.8749999999998 Td (Method   ?   Route   ?   Auth   ?   Behavior) Tj ET
+BT /F1 8 Tf 54 600.8749999999998 Td (GET   ?   `/health`   ?   Public   ?   Liveness only; confirms the process responds.) Tj ET
+BT /F1 8 Tf 54 589.8749999999998 Td (GET   ?   `/ready`   ?   Public   ?   Readiness check with a bounded database query; reports whether optional email credentials ar) Tj ET
+BT /F1 8 Tf 54 578.8749999999998 Td (e configured.) Tj ET
+BT /F1 9.5 Tf 48 562.8749999999998 Td (Readiness does not expose connection strings or internal error details.) Tj ET
+BT /F2 15 Tf 48 545.0499999999997 Td (Authentication) Tj ET
+BT /F1 8 Tf 54 518.0499999999997 Td (Method   ?   Route   ?   Auth   ?   Request) Tj ET
+BT /F1 8 Tf 54 507.0499999999997 Td (POST   ?   `/auth/register`   ?   Public, throttled   ?   `{ "name": "A User", "email": "a@example.com", "password": "at least 8 c) Tj ET
+BT /F1 8 Tf 54 496.0499999999997 Td (haracters" }`) Tj ET
+BT /F1 8 Tf 54 485.0499999999997 Td (POST   ?   `/auth/login`   ?   Public, throttled   ?   `{ "email": "a@example.com", "password": "..." }`) Tj ET
+BT /F1 8 Tf 54 474.0499999999997 Td (POST   ?   `/auth/refresh`   ?   Refresh cookie, throttled   ?   No body. Reads and rotates the HTTP-only `jwt` cookie; does not r) Tj ET
+BT /F1 8 Tf 54 463.0499999999997 Td (equire an access token.) Tj ET
+BT /F1 8 Tf 54 452.0499999999997 Td (POST   ?   `/auth/logout`   ?   Refresh cookie if present   ?   No body. Revocation is idempotent and the matching cookie is clear) Tj ET
+BT /F1 8 Tf 54 441.0499999999997 Td (ed.) Tj ET
+BT /F1 8 Tf 54 430.0499999999997 Td (POST   ?   `/auth/logout-all`   ?   Access token   ?   No body. Revokes every refresh session and clears the current browser cooki) Tj ET
+BT /F1 8 Tf 54 419.0499999999997 Td (e.) Tj ET
+BT /F1 8 Tf 54 408.0499999999997 Td (GET   ?   `/auth/test`   ?   Access token   ?   Returns the authenticated user payload.) Tj ET
+BT /F1 9.5 Tf 48 392.0499999999997 Td (Login and refresh responses return an access token in JSON. Send it on protected) Tj ET
+BT /F1 9.5 Tf 48 379.22499999999974 Td (requests as Authorization: Bearer <accessToken>. Browser refresh requests must) Tj ET
+BT /F1 9.5 Tf 48 366.39999999999975 Td (include credentials so the HTTP-only cookie is sent. The refresh cookie is scoped) Tj ET
+BT /F1 9.5 Tf 48 353.57499999999976 Td (to /api/auth, HttpOnly, and SameSite=Strict by default. If deployment) Tj ET
+BT /F1 9.5 Tf 48 340.7499999999998 Td (requires cross-site cookies, set COOKIE_SAME_SITE=none only over HTTPS; the API) Tj ET
+BT /F1 9.5 Tf 48 327.9249999999998 Td (also checks allowed request origins for state-changing methods.) Tj ET
+BT /F1 9.5 Tf 48 310.0999999999998 Td (Authentication routes share a per-IP request limit of 20 requests per 15 minutes.) Tj ET
+BT /F1 9.5 Tf 48 297.2749999999998 Td (When deployed behind a proxy, configure TRUST_PROXY to the exact trusted hop) Tj ET
+BT /F1 9.5 Tf 48 284.4499999999998 Td (count; do not trust arbitrary forwarded headers.) Tj ET
+BT /F2 15 Tf 48 266.62499999999983 Td (Groups and members) Tj ET
+BT /F1 8 Tf 54 239.62499999999983 Td (Method   ?   Route   ?   Auth   ?   Request / policy) Tj ET
+BT /F1 8 Tf 54 228.62499999999983 Td (POST   ?   `/groups`   ?   Access token   ?   `{ "name": "...", "description": "optional" }`; creator becomes admin.) Tj ET
+BT /F1 8 Tf 54 217.62499999999983 Td (GET   ?   `/groups`   ?   Access token   ?   Lists the caller?s active groups.) Tj ET
+BT /F1 8 Tf 54 206.62499999999983 Td (GET   ?   `/groups/:groupId`   ?   Access token, member   ?   Returns group and member data.) Tj ET
+BT /F1 8 Tf 54 195.62499999999983 Td (PUT   ?   `/groups/:groupId`   ?   Admin   ?   Partial `{ "name": "...", "description": "..." }`; at least one field required.) Tj ET
+BT /F1 8 Tf 54 184.62499999999983 Td (DELETE   ?   `/groups/:groupId`   ?   Admin   ?   Archives the group; all related history is retained.) Tj ET
+BT /F1 8 Tf 54 173.62499999999983 Td (POST   ?   `/groups/:groupId/members`   ?   Admin   ?   `{ "email": "existing-user@example.com" }`.) Tj ET
+BT /F1 8 Tf 54 162.62499999999983 Td (DELETE   ?   `/groups/:groupId/members/:userId`   ?   Admin   ?   Removes a member only when their active net balance is zero.) Tj ET
+BT /F1 9.5 Tf 48 146.62499999999983 Td (Group and user path parameters must be UUIDs. Archived groups are hidden from) Tj ET
+BT /F1 9.5 Tf 48 133.79999999999984 Td (normal group, expense, balance, and settlement routes.) Tj ET
+BT /F2 15 Tf 48 115.97499999999984 Td (Expenses) Tj ET
+BT /F1 9.5 Tf 48 88.97499999999984 Td (All expense routes require an access token and active group membership.) Tj ET
+BT /F1 8 Tf 54 71.14999999999984 Td (Method   ?   Route   ?   Additional policy) Tj ET
+BT /F1 8 Tf 54 60.149999999999835 Td (POST   ?   `/groups/:groupId/expenses`   ?   Creates an expense from the request schema below. The payer and all split participant) Tj ET
+0.45 0.49 0.55 rg
+BT /F1 8 Tf 519 26 Td (Splitzy API  |  1) Tj ET
+endstream
+endobj
+7 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R /F2 4 0 R /F3 5 0 R >> >> /Contents 6 0 R >>
+endobj
+8 0 obj
+<< /Length 4806 >>
+stream
+BT /F1 8 Tf 54 744 Td (s must be active group members.) Tj ET
+BT /F1 8 Tf 54 733 Td (GET   ?   `/groups/:groupId/expenses`   ?   Lists active expenses only.) Tj ET
+BT /F1 8 Tf 54 722 Td (PUT   ?   `/groups/:groupId/expenses/:expenseId`   ?   Payer or admin may update; settlement entries are not editable here.) Tj ET
+BT /F1 8 Tf 54 711 Td (DELETE   ?   `/groups/:groupId/expenses/:expenseId`   ?   Payer, split participant, or admin may archive the expense.) Tj ET
+BT /F1 8 Tf 54 700 Td (GET   ?   `/groups/:groupId/balances`   ?   Returns active net balances and simplified settlement suggestions.) Tj ET
+BT /F1 9.5 Tf 48 684 Td (Create/update request:) Tj ET
+BT /F3 8 Tf 60 666.175 Td ({) Tj ET
+BT /F3 8 Tf 60 655.175 Td ("description": "Dinner",) Tj ET
+BT /F3 8 Tf 60 644.175 Td ("amount": 42.75,) Tj ET
+BT /F3 8 Tf 60 633.175 Td ("category": "FOOD",) Tj ET
+BT /F3 8 Tf 60 622.175 Td ("splitType": "EQUAL",) Tj ET
+BT /F3 8 Tf 60 611.175 Td ("paidBy": "00000000-0000-4000-8000-000000000001",) Tj ET
+BT /F3 8 Tf 60 600.175 Td ("splits": [) Tj ET
+BT /F3 8 Tf 60 589.175 Td ({ "userId": "00000000-0000-4000-8000-000000000001" },) Tj ET
+BT /F3 8 Tf 60 578.175 Td ({ "userId": "00000000-0000-4000-8000-000000000002" }) Tj ET
+BT /F3 8 Tf 60 567.175 Td (]) Tj ET
+BT /F3 8 Tf 60 556.175 Td (}) Tj ET
+BT /F1 9.5 Tf 48 540.175 Td (Supported categories are GENERAL, FOOD, ACCOMMODATION, SHOPPING,) Tj ET
+BT /F1 9.5 Tf 48 527.3499999999999 Td (TRANSPORT, and OTHER. SETTLEMENT is reserved for settlement routes.) Tj ET
+BT /F1 9.5 Tf 48 514.5249999999999 Td (Supported split types are EQUAL, EXACT, PERCENTAGE, and SHARES. Each) Tj ET
+BT /F1 9.5 Tf 48 501.6999999999999 Td (non-equal split row includes value \(or legacy amount\) for its amount,) Tj ET
+BT /F1 9.5 Tf 48 488.8749999999999 Td (percentage, or share count. Participants must be distinct UUIDs. Amounts must be) Tj ET
+BT /F1 9.5 Tf 48 476.0499999999999 Td (positive, finite, and have at most two decimal places; individual split amounts) Tj ET
+BT /F1 9.5 Tf 48 463.2249999999999 Td (may be zero. Exact splits must add to the expense amount; percentages must total) Tj ET
+BT /F1 9.5 Tf 48 450.3999999999999 Td (100; shares must have a positive total. The server allocates rounding residuals) Tj ET
+BT /F1 9.5 Tf 48 437.57499999999993 Td (deterministically in paise so the split total remains exact.) Tj ET
+BT /F2 15 Tf 48 419.74999999999994 Td (Settlements) Tj ET
+BT /F1 8 Tf 54 392.74999999999994 Td (Method   ?   Route   ?   Auth   ?   Request / policy) Tj ET
+BT /F1 8 Tf 54 381.74999999999994 Td (POST   ?   `/groups/:groupId/settlements`   ?   Access token, group member   ?   `{ "payeeId": "UUID", "amount": 25.00 }`; caller ) Tj ET
+BT /F1 8 Tf 54 370.74999999999994 Td (is payer. Must be a different group member and the amount cannot exceed the caller?s current simplified debt to that payee.) Tj ET
+BT /F1 8 Tf 54 359.74999999999994 Td (GET   ?   `/groups/:groupId/settlements`   ?   Access token, group member   ?   Lists active settlements with payer/payee identiti) Tj ET
+BT /F1 8 Tf 54 348.74999999999994 Td (es.) Tj ET
+BT /F1 8 Tf 54 337.74999999999994 Td (DELETE   ?   `/groups/:groupId/settlements/:settlementId`   ?   Access token, group member   ?   Payer, payee, or admin may archiv) Tj ET
+BT /F1 8 Tf 54 326.74999999999994 Td (e the settlement.) Tj ET
+BT /F1 9.5 Tf 48 310.74999999999994 Td (Settlements are represented as an expense categorized SETTLEMENT and a single) Tj ET
+BT /F1 9.5 Tf 48 297.92499999999995 Td (split; this is the canonical model used by balances. Creation serializes on the) Tj ET
+BT /F1 9.5 Tf 48 285.09999999999997 Td (group ledger so concurrent payments cannot over-settle the same outstanding) Tj ET
+BT /F1 9.5 Tf 48 272.275 Td (balance. A concurrent ledger change returns 409; refresh the balance before) Tj ET
+BT /F1 9.5 Tf 48 259.45 Td (retrying.) Tj ET
+BT /F2 15 Tf 48 241.625 Td (CORS and validation) Tj ET
+BT /F1 9.5 Tf 48 214.625 Td (Set CLIENT_URL and optional comma-separated CLIENT_ORIGINS to exact browser) Tj ET
+BT /F1 9.5 Tf 48 201.8 Td (origins. Credentialed requests are not combined with wildcard CORS. When a) Tj ET
+BT /F1 9.5 Tf 48 188.97500000000002 Td (browser sends an Origin on a state-changing request, it must match the allowlist.) Tj ET
+BT /F1 9.5 Tf 48 176.15000000000003 Td (Request bodies are limited to 100 KiB. Zod validation rejects unknown fields and) Tj ET
+BT /F1 9.5 Tf 48 163.32500000000005 Td (returns details such as:) Tj ET
+BT /F3 8 Tf 60 145.50000000000006 Td ({) Tj ET
+BT /F3 8 Tf 60 134.50000000000006 Td ("error": "Validation failed.",) Tj ET
+BT /F3 8 Tf 60 123.50000000000006 Td ("details": [{ "field": "body.email", "message": "Invalid email" }]) Tj ET
+BT /F3 8 Tf 60 112.50000000000006 Td (}) Tj ET
+0.45 0.49 0.55 rg
+BT /F1 8 Tf 519 26 Td (Splitzy API  |  2) Tj ET
+endstream
+endobj
+9 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R /F2 4 0 R /F3 5 0 R >> >> /Contents 8 0 R >>
+endobj
+xref
+0 10
+0000000000 65535 f 
+0000000015 00000 n 
+0000000064 00000 n 
+0000000127 00000 n 
+0000000197 00000 n 
+0000000272 00000 n 
+0000000340 00000 n 
+0000005988 00000 n 
+0000006134 00000 n 
+0000010992 00000 n 
+trailer
+<< /Size 10 /Root 1 0 R >>
+startxref
+11138
+%%EOF
