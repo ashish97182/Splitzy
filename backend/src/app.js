@@ -32,6 +32,10 @@ app.use("/api/", healthRoutes);
 app.use("/api/auth", authroutes);
 app.use("/api/groups", groupRoutes);
 app.use(errorHandler);
-
+app.get("/", (req, res) => {
+  res.status(200).json({
+    message: "Splitzy API is running",
+  });
+});
 
 export default app;

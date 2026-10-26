@@ -4,14 +4,14 @@
   "description": "Splitzy Backend API",
   "main": "dist/server.js",
   "type": "module",
-  "scripts": {
-    "dev": "node --watch server.js",
-    "build": "prisma generate",
-    "start": "node server.js",
-    "test": "node --test tests/unit/*.test.js",
-    "test:integration": "node --test tests/integration/*.test.js",
-    "test:ci": "npm run test && node tests/require-test-database.js && npm run test:integration"
-  },
+ "scripts": {
+  "dev": "node --watch server.js",
+  "build": "prisma generate && tsc",
+  "start": "node dist/server.js",
+  "test": "node --test tests/unit/*.test.js",
+  "test:integration": "node --test tests/integration/*.test.js",
+  "test:ci": "npm run test && node tests/require-test-database.js && npm run test:integration"
+},
   "engines": {
     "node": ">=20.13.0"
   },
@@ -19,8 +19,8 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@prisma/adapter-pg": "^6.19.3",
-    "@prisma/client": "^6.19.3",
+    "@prisma/adapter-pg": "^7.10.0",
+    "@prisma/client": "^7.10.0",
     "bcrypt": "^5.1.1",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.6",
@@ -36,6 +36,6 @@
     "zod": "^3.24.2"
   },
   "devDependencies": {
-    "prisma": "^6.19.3"
+    "prisma": "^7.10.0"
   }
 }
