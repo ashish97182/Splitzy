@@ -31,6 +31,7 @@ Never commit `.env` or real credentials.
 | `NODE_ENV` | Optional | Runtime mode; production enables secure cookies and production request logging. |
 | `CLIENT_URL` | Optional | Primary exact CORS/browser origin. |
 | `CLIENT_ORIGINS` | Optional | Additional comma-separated exact origins. |
+| `FRONTEND_ORIGIN` | Optional | Exact deployed frontend origin; accepted as an additional CORS origin. |
 | `COOKIE_SAME_SITE` | Optional; defaults to `strict` | Cookie policy: `strict`, `lax`, or `none`. `none` always enables `Secure` and requires HTTPS in deployment. |
 | `TRUST_PROXY` | Optional | Exact trusted proxy hop count from 0 to 10; leave unset when directly exposed. |
 | `EMAIL_USER`, `OAUTH_CLIENT_ID`, `OAUTH_CLIENT_SECRET`, `OAUTH_REFRESH_TOKEN` | Optional; configure all four | Gmail OAuth2 email delivery. Leave blank to disable email. |

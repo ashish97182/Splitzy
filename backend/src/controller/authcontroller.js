@@ -388,7 +388,9 @@ export const logout = async (req, res) => {
     });
   }
 };
-
+//----------------------------------------------------
+// POST /api/auth/logout all devices
+// ----------------------------------------------------
 export const logoutAllDevices = async (req, res) => {
   clearRefreshCookie(res);
 

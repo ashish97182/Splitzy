@@ -38,3 +38,12 @@ test("origin configuration normalizes and deduplicates exact web origins", () =>
     /HTTP or HTTPS/,
   );
 });
+
+test("origin configuration accepts the deployed frontend origin", () => {
+  assert.deepEqual(
+    getAllowedOrigins({
+      FRONTEND_ORIGIN: "https://dostidue-8obm6gdw1-nishantmedwan.vercel.app",
+    }),
+    ["https://dostidue-8obm6gdw1-nishantmedwan.vercel.app"],
+  );
+});

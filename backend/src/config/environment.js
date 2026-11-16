@@ -45,7 +45,7 @@ export function validateRuntimeConfiguration(env = process.env) {
 
 export function getAllowedOrigins(env = process.env) {
   return [...new Set(
-    [env.CLIENT_URL, ...(env.CLIENT_ORIGINS ?? "").split(",")]
+    [env.FRONTEND_ORIGIN, env.CLIENT_URL, ...(env.CLIENT_ORIGINS ?? "").split(",")]
       .map((origin) => origin?.trim())
       .filter(Boolean)
       .map((origin) => {

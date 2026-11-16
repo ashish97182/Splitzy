@@ -22,6 +22,8 @@ app.use(cors({
   origin(origin, callback) {
     callback(null, !origin || allowedOrigins.includes(origin));
   },
+  methods: ["GET", "POST", "PUT", "PATCH", "DELETE"],
+  allowedHeaders: ["Content-Type", "Authorization"],
   credentials: true,
 }));
 app.use(verifyOrigin(allowedOrigins));
