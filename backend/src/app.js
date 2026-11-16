@@ -18,14 +18,26 @@ if (process.env.TRUST_PROXY !== undefined) {
 }
 
 app.use(helmet());
-app.use(cors({
-  origin(origin, callback) {
-    callback(null, !origin || allowedOrigins.includes(origin));
-  },
-  methods: ["GET", "POST", "PUT", "PATCH", "DELETE"],
-  allowedHeaders: ["Content-Type", "Authorization"],
-  credentials: true,
-}));
+// app.use(cors({
+//   origin(origin, callback) {
+//     callback(null, !origin || allowedOrigins.includes(origin));
+//   },
+//   methods: ["GET", "POST", "PUT", "PATCH", "DELETE"],
+//   allowedHeaders: ["Content-Type", "Authorization"],
+//   credentials: true,
+// }));
+
+app.use(
+  cors({
+    origin: [
+      "https://dostidue-8obm6gdw1-nishantmedwan.vercel.app",
+      ...allowedOrigins, // Keeps whatever you have in your environment variables too
+    ],
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
+    credentials: true,
+  }),
+);
 app.use(verifyOrigin(allowedOrigins));
 app.use(express.json({ limit: "100kb" }));
 app.use(cookieParser());
