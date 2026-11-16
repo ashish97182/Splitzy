@@ -46,7 +46,7 @@ app.use(cors({
 }));
 
 // 3. Force all OPTIONS (preflight) requests to be handled by CORS
-app.options("*", cors());
+app.options("/*", cors());
 
 // 4. Temporarily comment this out as it might conflict with the CORS package
 // app.use(verifyOrigin(allowedOrigins));
