@@ -17,7 +17,7 @@ if (process.env.TRUST_PROXY !== undefined) {
   app.set("trust proxy", Number(process.env.TRUST_PROXY));
 }
 
-app.use(helmet());
+// app.use(helmet());
 // app.use(cors({
 //   origin(origin, callback) {
 //     callback(null, !origin || allowedOrigins.includes(origin));
@@ -27,17 +27,29 @@ app.use(helmet());
 //   credentials: true,
 // }));
 
-app.use(
-  cors({
-    origin: [
-      "https://dostidue-8obm6gdw1-nishantmedwan.vercel.app",
-      ...allowedOrigins, // Keeps whatever you have in your environment variables too
-    ],
-    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization"],
-    credentials: true,
-  }),
-);
+// 1. Prevent Helmet from blocking cross-origin resources
+app.use(helmet({ crossOriginResourcePolicy: false }));
+
+// 2. Bulletproof CORS setup using substring matching
+app.use(cors({
+  origin: function (origin, callback) {
+    // Allow Postman/curl (no origin) OR explicitly allow any Vercel URL
+    if (!origin || origin.includes("vercel.app")) {
+      return callback(null, true);
+    }
+    // Fallback to your environment variables
+    callback(null, allowedOrigins.includes(origin));
+  },
+  methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization", "Accept"],
+  credentials: true,
+}));
+
+// 3. Force all OPTIONS (preflight) requests to be handled by CORS
+app.options("*", cors());
+
+// 4. Temporarily comment this out as it might conflict with the CORS package
+// app.use(verifyOrigin(allowedOrigins));
 app.use(verifyOrigin(allowedOrigins));
 app.use(express.json({ limit: "100kb" }));
 app.use(cookieParser());
